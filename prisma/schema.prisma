@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id                        Int       @id @default(autoincrement())
+  name                      String
+  instagramBusinessAccountId String?  @map("instagram_business_account_id")
+  instagramAccessToken      String?   @map("instagram_access_token")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  
+  users                     User[]
+  instagramPosts            InstagramPost[]
+  dailyMetrics              DailyMetric[]
+  
+  @@map("companies")
+}
+
+model User {
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  password          String
+  name              String
+  role              String    @default("viewer")
+  companyId         Int?      @map("company_id")
+  resetToken        String?   @map("reset_token")
+  resetTokenExpires DateTime? @map("reset_token_expires")
+  resetCode         String?   @map("reset_code")
+  resetCodeExpires  DateTime? @map("reset_code_expires")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  
+  company           Company?  @relation(fields: [companyId], references: [id])
+  refreshTokens     RefreshToken[]
+  
+  @@map("users")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  token     String
+  expiresAt DateTime @map("expires_at")
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user      User     @relation(fields: [userId], references: [id])
+  
+  @@map("refresh_tokens")
+}
+
+model InstagramPost {
+  id          Int      @id @default(autoincrement())
+  companyId   Int      @map("company_id")
+  instagramId String   @unique @map("instagram_id")
+  mediaType   String   @map("media_type")
+  mediaUrl    String?  @map("media_url")
+  permalink   String?
+  caption     String?
+  timestamp   DateTime
+  metrics     Json     @default("{\"likes\":0,\"comments\":0}")
+  lastUpdated DateTime @default(now()) @map("last_updated")
+  
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  @@map("instagram_posts")
+}
+
+model DailyMetric {
+  id            Int      @id @default(autoincrement())
+  companyId     Int      @map("company_id")
+  date          DateTime
+  followersCount Int     @default(0) @map("followers_count")
+  reach         Int      @default(0)
+  impressions   Int      @default(0)
+  profileViews  Int      @default(0) @map("profile_views")
+  
+  company       Company  @relation(fields: [companyId], references: [id])
+  
+  @@map("daily_metrics")
+}
+
