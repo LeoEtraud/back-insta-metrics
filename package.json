@@ -14,8 +14,11 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@azure/msal-node": "^5.0.4",
     "@prisma/client": "^5.20.0",
     "@types/nodemailer": "^7.0.9",
+    "@types/passport-google-oauth20": "^2.0.17",
+    "@types/passport-oauth2": "^1.8.0",
     "bcryptjs": "^3.0.3",
     "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.5",
@@ -25,7 +28,10 @@
     "memorystore": "^1.6.7",
     "nodemailer": "^8.0.1",
     "passport": "^0.7.0",
+    "passport-azure-ad": "^4.3.5",
+    "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
+    "passport-oauth2": "^1.8.0",
     "pg": "^8.16.3",
     "zod": "^3.24.2",
     "zod-validation-error": "^3.4.0"

@@ -27,12 +27,29 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
     // Salva código no banco
     await storage.setUserResetCode(email, code, expiresAt);
     
+    // Verifica se email está configurado
+    const emailConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+    
     // Envia email com código
     try {
       await sendPasswordResetCode(email, code);
-    } catch (error) {
-      console.error("Erro ao enviar email:", error);
-      // Continua mesmo se falhar o envio (para não expor se o email existe)
+      console.log(`✅ Processo de recuperação iniciado para: ${email}`);
+    } catch (error: any) {
+      console.error("\n❌ Erro crítico ao enviar email de recuperação");
+      console.error("Email:", email);
+      console.error("Código gerado:", code);
+      console.error("Erro completo:", error);
+      
+      // Em caso de erro, ainda retorna sucesso para não expor se o email existe
+      // Mas em desenvolvimento, podemos ser mais verbosos
+      if (process.env.NODE_ENV === "development") {
+        console.error("\n⚠️  ATENÇÃO: O código foi gerado e salvo no banco, mas o email não foi enviado.");
+        console.error("💡 Você pode usar o código diretamente:", code);
+        console.error("💡 Ou verificar os logs acima para corrigir o problema de envio.\n");
+      }
+      
+      // Não retorna erro para o cliente (segurança)
+      // O código já foi salvo no banco, então o usuário pode tentar usar mesmo sem receber o email
     }
   }
   
@@ -81,7 +98,19 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const input = api.auth.login.input.parse(req.body);
   const user = await storage.getUserByEmail(input.email);
   
-  if (!user || !(await bcrypt.compare(input.password, user.password))) {
+  if (!user) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  // Usuários OAuth não têm senha
+  if (user.provider && user.provider !== "local") {
+    return res.status(401).json({ 
+      message: "Esta conta foi criada via login social. Use o botão de login social correspondente." 
+    });
+  }
+
+  // Verifica senha para usuários locais
+  if (!user.password || !(await bcrypt.compare(input.password, user.password))) {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 

@@ -14,15 +14,30 @@ const createTransporter = () => {
     return null;
   }
 
-  return nodemailer.createTransport({
+  // Remove espaços da senha (caso tenha sido copiada com espaços)
+  const cleanPassword = emailPass.trim().replace(/\s+/g, "");
+
+  const config = {
     host: emailHost,
     port: emailPort,
     secure: emailPort === 465,
     auth: {
-      user: emailUser,
-      pass: emailPass,
+      user: emailUser.trim(),
+      pass: cleanPassword,
     },
-  });
+    // Configurações adicionais para Gmail
+    tls: {
+      rejectUnauthorized: false, // Para desenvolvimento
+    },
+  };
+
+  console.log(`📧 Configurando email:`);
+  console.log(`   Host: ${config.host}`);
+  console.log(`   Port: ${config.port}`);
+  console.log(`   User: ${config.auth.user}`);
+  console.log(`   Secure: ${config.secure}`);
+
+  return nodemailer.createTransport(config);
 };
 
 export const sendPasswordResetCode = async (
@@ -32,13 +47,19 @@ export const sendPasswordResetCode = async (
   const transporter = createTransporter();
 
   if (!transporter) {
-    // Modo desenvolvimento - apenas log
-    console.log("=".repeat(60));
-    console.log(`[EMAIL MOCK] Código de recuperação de senha`);
-    console.log(`Para: ${email}`);
-    console.log(`Código: ${code}`);
-    console.log(`Validade: 15 minutos`);
-    console.log("=".repeat(60));
+    // Modo desenvolvimento - exibe código no console de forma destacada
+    console.log("\n" + "=".repeat(80));
+    console.log("🔧 MODO DESENVOLVIMENTO - Email não configurado");
+    console.log("=".repeat(80));
+    console.log(`📧 Email destinatário: ${email}`);
+    console.log(`🔑 Código de recuperação: ${code}`);
+    console.log(`⏰ Validade: 15 minutos`);
+    console.log("\n💡 Para receber emails reais, configure as variáveis de ambiente:");
+    console.log("   EMAIL_USER=seu-email@gmail.com");
+    console.log("   EMAIL_PASS=sua-senha-de-app");
+    console.log("   EMAIL_HOST=smtp.gmail.com");
+    console.log("   EMAIL_PORT=587");
+    console.log("=".repeat(80) + "\n");
     return;
   }
 
@@ -161,11 +182,41 @@ export const sendPasswordResetCode = async (
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL] Código de recuperação enviado para ${email}`);
-  } catch (error) {
-    console.error(`[EMAIL ERROR] Falha ao enviar email para ${email}:`, error);
-    throw new Error("Falha ao enviar email de recuperação");
+    // Verifica conexão antes de enviar
+    await transporter.verify();
+    console.log("✅ Conexão com servidor de email verificada com sucesso");
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ [EMAIL] Código de recuperação enviado para ${email}`);
+    console.log(`📧 Message ID: ${info.messageId}`);
+    console.log(`📬 Response: ${info.response}`);
+  } catch (error: any) {
+    console.error("\n❌ [EMAIL ERROR] Falha ao enviar email");
+    console.error(`📧 Destinatário: ${email}`);
+    console.error(`🔑 Código gerado: ${code}`);
+    console.error(`\nDetalhes do erro:`);
+    console.error(`- Mensagem: ${error.message}`);
+    console.error(`- Código: ${error.code || "N/A"}`);
+    console.error(`- Comando: ${error.command || "N/A"}`);
+    console.error(`- Response: ${error.response || "N/A"}`);
+    
+    if (error.code === "EAUTH") {
+      console.error("\n⚠️  Erro de autenticação!");
+      console.error("Verifique se:");
+      console.error("1. EMAIL_USER está correto");
+      console.error("2. EMAIL_PASS é uma senha de app válida (não a senha normal)");
+      console.error("3. A senha de app foi gerada corretamente no Google");
+    }
+    
+    if (error.code === "ECONNECTION" || error.code === "ETIMEDOUT") {
+      console.error("\n⚠️  Erro de conexão!");
+      console.error("Verifique se:");
+      console.error("1. EMAIL_HOST está correto (smtp.gmail.com)");
+      console.error("2. EMAIL_PORT está correto (587)");
+      console.error("3. Sua conexão com a internet está funcionando");
+    }
+    
+    throw new Error(`Falha ao enviar email: ${error.message}`);
   }
 };
 

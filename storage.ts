@@ -1,6 +1,6 @@
 import { prisma } from "./db";
 import { 
-  type User, type InsertUser, type Company, type InstagramPost, type DailyMetric
+  type User, type InsertUser, type Company, type InstagramPost, type DailyMetric, USER_ROLES
 } from "./shared/schema";
 
 export interface IStorage {
@@ -8,6 +8,9 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | null>;
   getUser(id: number): Promise<User | null>;
   createUser(user: InsertUser): Promise<User>;
+  createOAuthUser(data: { email: string; name: string; provider: string; providerId: string }): Promise<User>;
+  updateUserProvider(id: number, provider: string, providerId: string): Promise<void>;
+  getUserByProviderId(provider: string, providerId: string): Promise<User | null>;
   
   // Refresh Tokens
   storeRefreshToken(userId: number, token: string, expiresAt: Date): Promise<void>;
@@ -122,6 +125,37 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     return await prisma.user.create({ data: user });
+  }
+
+  async createOAuthUser(data: { email: string; name: string; provider: string; providerId: string }): Promise<User> {
+    return await prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+        password: null, // Usuários OAuth não têm senha
+        provider: data.provider,
+        providerId: data.providerId,
+        role: USER_ROLES.ADMIN_COMPANY,
+      },
+    });
+  }
+
+  async updateUserProvider(id: number, provider: string, providerId: string): Promise<void> {
+    await prisma.user.update({
+      where: { id },
+      data: { provider, providerId },
+    });
+  }
+
+  async getUserByProviderId(provider: string, providerId: string): Promise<User | null> {
+    return await prisma.user.findUnique({
+      where: {
+        provider_providerId: {
+          provider,
+          providerId,
+        },
+      },
+    });
   }
 
   async storeRefreshToken(userId: number, token: string, expiresAt: Date): Promise<void> {

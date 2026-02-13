@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { createServer } from "http";
 import cors from "cors";
 import { errorHandler } from "./middlewares/errorHandler";
+import passport from "./config/passport";
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,6 +24,9 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+// Passport initialization
+app.use(passport.initialize());
 
 // CORS configuration
 app.use(cors({
