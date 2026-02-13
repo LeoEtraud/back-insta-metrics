@@ -41,32 +41,33 @@ passport.use(
 
         console.log("🔍 [GOOGLE OAUTH] Buscando usuário por email:", email);
 
-        // Busca usuário existente por email ou providerId
+        // Busca usuário existente por email
         let user = await storage.getUserByEmail(email);
         
-        if (user) {
-          console.log("✅ [GOOGLE OAUTH] Usuário encontrado:", {
-            id: user.id,
-            provider: user.provider,
-            providerId: user.providerId,
-          });
+        if (!user) {
+          console.log("❌ [GOOGLE OAUTH] Usuário não encontrado no banco de dados");
+          return done(new Error("Usuário não cadastrado. Por favor, cadastre-se primeiro antes de usar login social."), null);
+        }
 
-          // Se usuário existe mas não tem provider, atualiza
-          if (!user.provider || user.provider === "local") {
-            console.log("🔄 [GOOGLE OAUTH] Atualizando provider do usuário");
-            await storage.updateUserProvider(user.id, "google", providerId);
-            user = await storage.getUser(user.id);
-          }
+        console.log("✅ [GOOGLE OAUTH] Usuário encontrado:", {
+          id: user.id,
+          provider: user.provider,
+          providerId: user.providerId,
+          hasPassword: !!user.password,
+        });
+
+        // Se o usuário tem provider "local" e senha, permite manter ambos os métodos
+        // Atualiza o provider para "google" mas mantém a senha
+        if (!user.provider || user.provider === "local") {
+          console.log("🔄 [GOOGLE OAUTH] Atualizando provider do usuário para Google");
+          await storage.updateUserProvider(user.id, "google", providerId);
+          user = await storage.getUser(user.id);
+          console.log("✅ [GOOGLE OAUTH] Usuário pode fazer login com Google e também com senha (se tiver senha definida)");
+        } else if (user.provider !== "google") {
+          // Se o usuário já tem outro provider, permite mas mantém o provider original
+          console.log("⚠️ [GOOGLE OAUTH] Usuário já tem outro provider:", user.provider);
         } else {
-          console.log("➕ [GOOGLE OAUTH] Criando novo usuário OAuth");
-          // Cria novo usuário OAuth
-          user = await storage.createOAuthUser({
-            email,
-            name,
-            provider: "google",
-            providerId,
-          });
-          console.log("✅ [GOOGLE OAUTH] Usuário criado:", { id: user.id, email: user.email });
+          console.log("✅ [GOOGLE OAUTH] Usuário já configurado para Google");
         }
 
         // Gera tokens
@@ -135,23 +136,35 @@ passport.use(
           return done(new Error("Email não encontrado no perfil da Microsoft"), null);
         }
 
-        // Busca usuário existente por email ou providerId
+        console.log("🔍 [MICROSOFT OAUTH] Buscando usuário por email:", email);
+
+        // Busca usuário existente por email
         let user = await storage.getUserByEmail(email);
         
-        if (user) {
-          // Se usuário existe mas não tem provider, atualiza
-          if (!user.provider || user.provider === "local") {
-            await storage.updateUserProvider(user.id, "microsoft", providerId);
-            user = await storage.getUser(user.id);
-          }
+        if (!user) {
+          console.log("❌ [MICROSOFT OAUTH] Usuário não encontrado no banco de dados");
+          return done(new Error("Usuário não cadastrado. Por favor, cadastre-se primeiro antes de usar login social."), null);
+        }
+
+        console.log("✅ [MICROSOFT OAUTH] Usuário encontrado:", {
+          id: user.id,
+          provider: user.provider,
+          providerId: user.providerId,
+          hasPassword: !!user.password,
+        });
+
+        // Se o usuário tem provider "local" e senha, permite manter ambos os métodos
+        // Atualiza o provider para "microsoft" mas mantém a senha
+        if (!user.provider || user.provider === "local") {
+          console.log("🔄 [MICROSOFT OAUTH] Atualizando provider do usuário para Microsoft");
+          await storage.updateUserProvider(user.id, "microsoft", providerId);
+          user = await storage.getUser(user.id);
+          console.log("✅ [MICROSOFT OAUTH] Usuário pode fazer login com Microsoft e também com senha (se tiver senha definida)");
+        } else if (user.provider !== "microsoft") {
+          // Se o usuário já tem outro provider, permite mas mantém o provider original
+          console.log("⚠️ [MICROSOFT OAUTH] Usuário já tem outro provider:", user.provider);
         } else {
-          // Cria novo usuário OAuth
-          user = await storage.createOAuthUser({
-            email,
-            name,
-            provider: "microsoft",
-            providerId,
-          });
+          console.log("✅ [MICROSOFT OAUTH] Usuário já configurado para Microsoft");
         }
 
         // Gera tokens
@@ -170,12 +183,16 @@ passport.use(
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         );
 
+        console.log("✅ [MICROSOFT OAUTH] Tokens gerados com sucesso");
+        console.log("📤 [MICROSOFT OAUTH] Retornando dados para callback");
+
         return done(null, {
           user,
           accessToken: jwtAccessToken,
           refreshToken: jwtRefreshToken,
         });
       } catch (error: any) {
+        console.error("❌ [MICROSOFT OAUTH] Erro:", error);
         return done(error, null);
       }
     }

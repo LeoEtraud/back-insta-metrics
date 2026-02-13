@@ -48,18 +48,33 @@ export const microsoftAuth = passport.authenticate("microsoft", {
 // Microsoft OAuth - Callback
 export const microsoftCallback = (req: Request, res: Response) => {
   passport.authenticate("microsoft", { session: false }, (err: any, data: any) => {
-    if (err || !data) {
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-      return res.redirect(`${frontendUrl}/login?error=oauth_failed`);
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    
+    if (err) {
+      console.error("❌ [MICROSOFT CALLBACK] Erro na autenticação:", err);
+      return res.redirect(`${frontendUrl}/login?error=oauth_failed&message=${encodeURIComponent(err.message || "Erro desconhecido")}`);
+    }
+
+    if (!data) {
+      console.error("❌ [MICROSOFT CALLBACK] Dados não retornados");
+      return res.redirect(`${frontendUrl}/login?error=oauth_failed&message=no_data`);
     }
 
     const { accessToken, refreshToken, user } = data;
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    
+    console.log("✅ [MICROSOFT CALLBACK] Autenticação bem-sucedida:", {
+      userId: user?.id,
+      email: user?.email,
+      hasToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+    });
     
     // Redireciona para o frontend com tokens na URL
-    res.redirect(
-      `${frontendUrl}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}&user=${encodeURIComponent(JSON.stringify(user))}`
-    );
+    const redirectUrl = `${frontendUrl}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}&user=${encodeURIComponent(JSON.stringify(user))}`;
+    
+    console.log("📤 [MICROSOFT CALLBACK] Redirecionando para:", redirectUrl.replace(/token=[^&]+/, "token=***"));
+    
+    res.redirect(redirectUrl);
   })(req, res);
 };
 

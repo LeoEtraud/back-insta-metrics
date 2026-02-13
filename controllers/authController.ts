@@ -91,6 +91,9 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   await storage.updateUserPassword(user.id, hashedPassword);
   
+  // Se o usuário era OAuth e não tinha senha, agora pode fazer login com senha também
+  // O provider permanece o mesmo, mas agora ele tem senha definida
+  
   res.json({ message: "Senha atualizada com sucesso" });
 });
 
@@ -102,14 +105,16 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
-  // Usuários OAuth não têm senha
-  if (user.provider && user.provider !== "local") {
+  // Se o usuário tem provider OAuth mas não tem senha definida
+  if (user.provider && user.provider !== "local" && !user.password) {
+    const providerName = user.provider === "google" ? "Google" : user.provider === "microsoft" ? "Microsoft" : "login social";
     return res.status(401).json({ 
-      message: "Esta conta foi criada via login social. Use o botão de login social correspondente." 
+      message: `Esta conta foi criada via ${providerName}. Para fazer login com email e senha, primeiro defina uma senha usando "Esqueci minha senha". Ou use o botão de login ${providerName} acima.`,
+      oauthProvider: user.provider
     });
   }
 
-  // Verifica senha para usuários locais
+  // Verifica senha (funciona para usuários locais e OAuth que têm senha)
   if (!user.password || !(await bcrypt.compare(input.password, user.password))) {
     return res.status(401).json({ message: "Invalid credentials" });
   }
