@@ -9,9 +9,9 @@ import * as instagramController from "../controllers/instagramController";
 
 // REGISTRA TODAS AS ROTAS DA APLICAÇÃO NO EXPRESS - AUTENTICAÇÃO, OAUTH, DASHBOARD E INSTAGRAM
 export async function registerRoutes(
-  httpServer: Server,
+  httpServer: Server | null,
   app: Express
-): Promise<Server> {
+): Promise<Server | null> {
   
   // Auth Routes (Public)
   app.post(api.auth.forgotPassword.path, authController.forgotPassword);
@@ -37,6 +37,6 @@ export async function registerRoutes(
   app.get(api.instagram.posts.path, authenticateToken, instagramController.getPosts);
   app.post(api.instagram.sync.path, authenticateToken, instagramController.syncPosts);
 
-  return httpServer;
+  return httpServer || null;
 }
 
