@@ -57,6 +57,7 @@ const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Permite requisições sem origin (ex: Postman, mobile apps, server-side)
     if (!origin) {
+      console.log('[CORS] Requisição sem origin - permitindo');
       return callback(null, true);
     }
     
@@ -68,19 +69,53 @@ const corsOptions = {
                      origin.includes('localhost'); // Permite localhost em qualquer porta
     
     if (isAllowed) {
+      console.log(`[CORS] Origem permitida: ${origin}`);
       callback(null, true);
     } else {
-      console.warn(`[CORS] Origem bloqueada: ${origin}. Permitidas: ${allowedOrigins.join(', ')}`);
-      callback(new Error('Not allowed by CORS'));
+      console.warn(`[CORS] Origem bloqueada: ${origin}`);
+      console.warn(`[CORS] Origens permitidas: ${allowedOrigins.join(', ')}`);
+      // Em desenvolvimento, permite mesmo assim para debug
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[CORS] Modo desenvolvimento - permitindo mesmo assim');
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   exposedHeaders: ["Content-Type"],
+  optionsSuccessStatus: 200, // Alguns navegadores antigos precisam disso
 };
 
+// APLICA CORS ANTES DE QUALQUER OUTRO MIDDLEWARE
 app.use(cors(corsOptions));
+
+// TRATA REQUISIÇÕES OPTIONS (PREFLIGHT) EXPLICITAMENTE PARA CORS
+app.options('*', cors(corsOptions));
+
+// ADICIONA HEADERS CORS MANUALMENTE PARA GARANTIR COMPATIBILIDADE
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  
+  if (origin) {
+    const allowedOrigins = getAllowedOrigins();
+    const isAllowed = allowedOrigins.includes(origin) || 
+                     origin.includes('vercel.app') || 
+                     origin.includes('localhost');
+    
+    if (isAllowed) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    }
+  }
+  
+  next();
+});
 
 // Logger middleware
 app.use(logger);
