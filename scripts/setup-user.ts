@@ -1,7 +1,7 @@
-import { prisma } from "../db";
-import { storage } from "../storage";
+import { prisma } from "../src/services/db";
+import { storage } from "../src/services/storage";
 import bcrypt from "bcryptjs";
-import { USER_ROLES } from "../shared/schema";
+import { USER_ROLES } from "../src/types/schema";
 
 const EMAIL = "leonardo.duarte.of@gmail.com";
 const DEFAULT_PASSWORD = "senha123"; // Altere esta senha após o primeiro login

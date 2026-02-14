@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 
+// MIDDLEWARE DE TRATAMENTO DE ERROS - CAPTURA E FORMATA ERROS (ZOD, JWT, ETC) PARA RESPOSTA HTTP
 export function errorHandler(
   err: any,
   req: Request,

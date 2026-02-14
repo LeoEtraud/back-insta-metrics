@@ -1,20 +1,21 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as OAuth2Strategy } from "passport-oauth2";
-import { storage } from "../storage";
+import { storage } from "../services/storage";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
-import { USER_ROLES } from "../shared/schema";
+import { USER_ROLES } from "../types/schema";
 
-// Serialização do usuário para sessão (não usamos sessão, mas Passport requer)
+// SERIALIZA USUÁRIO PARA SESSÃO (NÃO USAMOS SESSÃO, MAS PASSPORT REQUER)
 passport.serializeUser((user: any, done) => {
   done(null, user);
 });
 
+// DESERIALIZA USUÁRIO DA SESSÃO (NÃO USAMOS SESSÃO, MAS PASSPORT REQUER)
 passport.deserializeUser((user: any, done) => {
   done(null, user);
 });
 
-// Estratégia Google OAuth
+// CONFIGURA ESTRATÉGIA DE AUTENTICAÇÃO GOOGLE OAUTH - BUSCA/CRIA USUÁRIO E GERA TOKENS JWT
 passport.use(
   new GoogleStrategy(
     {
@@ -36,7 +37,7 @@ passport.use(
 
         if (!email) {
           console.error("❌ [GOOGLE OAUTH] Email não encontrado no perfil");
-          return done(new Error("Email não encontrado no perfil do Google"), null);
+          return done(new Error("Email não encontrado no perfil do Google"), false);
         }
 
         console.log("🔍 [GOOGLE OAUTH] Buscando usuário por email:", email);
@@ -46,7 +47,7 @@ passport.use(
         
         if (!user) {
           console.log("❌ [GOOGLE OAUTH] Usuário não encontrado no banco de dados");
-          return done(new Error("Usuário não cadastrado. Por favor, cadastre-se primeiro antes de usar login social."), null);
+          return done(new Error("Usuário não cadastrado. Por favor, cadastre-se primeiro antes de usar login social."), false);
         }
 
         console.log("✅ [GOOGLE OAUTH] Usuário encontrado:", {
@@ -96,13 +97,13 @@ passport.use(
         });
       } catch (error: any) {
         console.error("❌ [GOOGLE OAUTH] Erro:", error);
-        return done(error, null);
+        return done(error, false);
       }
     }
   )
 );
 
-// Estratégia Microsoft OAuth
+// CONFIGURA ESTRATÉGIA DE AUTENTICAÇÃO MICROSOFT OAUTH - BUSCA/CRIA USUÁRIO E GERA TOKENS JWT
 passport.use(
   "microsoft",
   new OAuth2Strategy(
@@ -114,7 +115,7 @@ passport.use(
       callbackURL: process.env.MICROSOFT_CALLBACK_URL || "/api/auth/microsoft/callback",
       scope: "openid profile email",
     },
-    async (accessToken, refreshToken, params: any, done) => {
+    async (accessToken: string, refreshToken: string, params: any, done: (error: any, user?: any) => void) => {
       try {
         // Busca informações do usuário usando o access token
         const userInfoResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
@@ -124,16 +125,22 @@ passport.use(
         });
 
         if (!userInfoResponse.ok) {
-          return done(new Error("Falha ao obter informações do usuário da Microsoft"), null);
+          return done(new Error("Falha ao obter informações do usuário da Microsoft"), false);
         }
 
-        const userInfo = await userInfoResponse.json();
+        const userInfo = await userInfoResponse.json() as {
+          mail?: string;
+          userPrincipalName?: string;
+          displayName?: string;
+          givenName?: string;
+          id: string;
+        };
         const email = userInfo.mail || userInfo.userPrincipalName;
         const name = userInfo.displayName || userInfo.givenName || "User";
         const providerId = userInfo.id;
 
         if (!email) {
-          return done(new Error("Email não encontrado no perfil da Microsoft"), null);
+          return done(new Error("Email não encontrado no perfil da Microsoft"), false);
         }
 
         console.log("🔍 [MICROSOFT OAUTH] Buscando usuário por email:", email);
@@ -143,7 +150,7 @@ passport.use(
         
         if (!user) {
           console.log("❌ [MICROSOFT OAUTH] Usuário não encontrado no banco de dados");
-          return done(new Error("Usuário não cadastrado. Por favor, cadastre-se primeiro antes de usar login social."), null);
+          return done(new Error("Usuário não cadastrado. Por favor, cadastre-se primeiro antes de usar login social."), false);
         }
 
         console.log("✅ [MICROSOFT OAUTH] Usuário encontrado:", {
@@ -193,7 +200,7 @@ passport.use(
         });
       } catch (error: any) {
         console.error("❌ [MICROSOFT OAUTH] Erro:", error);
-        return done(error, null);
+        return done(error, false);
       }
     }
   )

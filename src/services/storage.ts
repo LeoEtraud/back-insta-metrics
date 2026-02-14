@@ -1,7 +1,7 @@
 import { prisma } from "./db";
 import { 
   type User, type InsertUser, type Company, type InstagramPost, type DailyMetric, USER_ROLES
-} from "./shared/schema";
+} from "../types/schema";
 
 export interface IStorage {
   // User & Auth
@@ -64,10 +64,12 @@ type InsertDailyMetric = {
 };
 
 export class DatabaseStorage implements IStorage {
+  // BUSCA USUÁRIO NO BANCO DE DADOS PELO EMAIL
   async getUserByEmail(email: string): Promise<User | null> {
     return await prisma.user.findUnique({ where: { email } });
   }
 
+  // SALVA TOKEN DE REDEFINIÇÃO DE SENHA NO BANCO DE DADOS ASSOCIADO AO EMAIL
   async setUserResetToken(email: string, token: string, expiresAt: Date): Promise<void> {
     await prisma.user.update({
       where: { email },
@@ -75,6 +77,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // BUSCA USUÁRIO PELO TOKEN DE REDEFINIÇÃO DE SENHA (VÁLIDO E NÃO EXPIRADO)
   async getUserByResetToken(token: string): Promise<User | null> {
     const user = await prisma.user.findFirst({
       where: {
@@ -87,6 +90,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  // SALVA CÓDIGO DE 6 DÍGITOS DE REDEFINIÇÃO DE SENHA NO BANCO DE DADOS
   async setUserResetCode(email: string, code: string, expiresAt: Date): Promise<void> {
     await prisma.user.update({
       where: { email },
@@ -94,6 +98,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // BUSCA USUÁRIO PELO CÓDIGO DE REDEFINIÇÃO DE SENHA (VÁLIDO E NÃO EXPIRADO)
   async getUserByResetCode(code: string): Promise<User | null> {
     const user = await prisma.user.findFirst({
       where: {
@@ -106,6 +111,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  // ATUALIZA A SENHA DO USUÁRIO E LIMPA TOKENS/CÓDIGOS DE REDEFINIÇÃO
   async updateUserPassword(id: number, passwordHash: string): Promise<void> {
     await prisma.user.update({
       where: { id },
@@ -119,14 +125,17 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // BUSCA USUÁRIO NO BANCO DE DADOS PELO ID
   async getUser(id: number): Promise<User | null> {
     return await prisma.user.findUnique({ where: { id } });
   }
 
+  // CRIA NOVO USUÁRIO NO BANCO DE DADOS
   async createUser(user: InsertUser): Promise<User> {
     return await prisma.user.create({ data: user });
   }
 
+  // CRIA NOVO USUÁRIO OAUTH (GOOGLE/MICROSOFT) NO BANCO DE DADOS SEM SENHA
   async createOAuthUser(data: { email: string; name: string; provider: string; providerId: string }): Promise<User> {
     return await prisma.user.create({
       data: {
@@ -140,6 +149,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // ATUALIZA O PROVEDOR OAUTH (GOOGLE/MICROSOFT) DO USUÁRIO
   async updateUserProvider(id: number, provider: string, providerId: string): Promise<void> {
     await prisma.user.update({
       where: { id },
@@ -147,6 +157,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // BUSCA USUÁRIO PELO ID DO PROVEDOR OAUTH (GOOGLE/MICROSOFT)
   async getUserByProviderId(provider: string, providerId: string): Promise<User | null> {
     return await prisma.user.findUnique({
       where: {
@@ -158,6 +169,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // ARMAZENA TOKEN DE REFRESH NO BANCO DE DADOS PARA RENOVAÇÃO DE TOKENS
   async storeRefreshToken(userId: number, token: string, expiresAt: Date): Promise<void> {
     await prisma.refreshToken.create({
       data: {
@@ -169,8 +181,9 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // BUSCA TOKEN DE REFRESH NO BANCO DE DADOS E RETORNA DADOS DO USUÁRIO
   async getRefreshToken(token: string) {
-    const rt = await prisma.refreshToken.findUnique({ where: { token } });
+    const rt = await prisma.refreshToken.findFirst({ where: { token } });
     if (!rt) return null;
     return {
       userId: rt.userId,
@@ -179,21 +192,25 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  // REVOCA TOKEN DE REFRESH MARCADO COMO INVALIDO NO BANCO DE DADOS
   async revokeRefreshToken(token: string): Promise<void> {
-    await prisma.refreshToken.update({
+    await prisma.refreshToken.updateMany({
       where: { token },
       data: { revoked: true },
     });
   }
 
+  // BUSCA EMPRESA NO BANCO DE DADOS PELO ID
   async getCompany(id: number): Promise<Company | null> {
     return await prisma.company.findUnique({ where: { id } });
   }
 
+  // CRIA NOVA EMPRESA NO BANCO DE DADOS
   async createCompany(name: string): Promise<Company> {
     return await prisma.company.create({ data: { name } });
   }
 
+  // BUSCA TODOS OS POSTS DO INSTAGRAM DA EMPRESA ORDENADOS POR DATA (MAIS RECENTES PRIMEIRO)
   async getPosts(companyId: number): Promise<InstagramPost[]> {
     return await prisma.instagramPost.findMany({
       where: { companyId },
@@ -201,10 +218,12 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // CRIA NOVO POST DO INSTAGRAM NO BANCO DE DADOS
   async createPost(post: InsertPost): Promise<InstagramPost> {
     return await prisma.instagramPost.create({ data: post });
   }
 
+  // BUSCA MÉTRICAS DIÁRIAS DA EMPRESA ORDENADAS POR DATA (MAIS ANTIGAS PRIMEIRO)
   async getDailyMetrics(companyId: number): Promise<DailyMetric[]> {
     return await prisma.dailyMetric.findMany({
       where: { companyId },
@@ -212,10 +231,12 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // CRIA NOVA MÉTRICA DIÁRIA NO BANCO DE DADOS
   async createDailyMetric(metric: InsertDailyMetric): Promise<DailyMetric> {
     return await prisma.dailyMetric.create({ data: metric });
   }
 
+  // CALCULA E RETORNA RESUMO DAS MÉTRICAS DO DASHBOARD (SEGUIDORES, ALCANCE, POSTS, TAXA DE ENGAJAMENTO)
   async getDashboardSummary(companyId: number) {
     // Get latest daily metric for followers/reach
     const latestMetric = await prisma.dailyMetric.findFirst({

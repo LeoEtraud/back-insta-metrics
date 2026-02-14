@@ -1,9 +1,10 @@
 import type { Response } from "express";
-import { storage } from "../storage";
-import { POST_TYPES } from "../shared/schema";
+import { storage } from "../services/storage";
+import { POST_TYPES } from "../types/schema";
 import { asyncHandler } from "../utils/asyncHandler";
 import type { AuthRequest } from "../middlewares/auth";
 
+// RETORNA TODOS OS POSTS DO INSTAGRAM DA EMPRESA DO USUÁRIO AUTENTICADO
 export const getPosts = asyncHandler(async (req: AuthRequest, res: Response) => {
   const companyId = req.user?.companyId;
   if (!companyId) {
@@ -14,6 +15,7 @@ export const getPosts = asyncHandler(async (req: AuthRequest, res: Response) => 
   res.json(posts);
 });
 
+// SINCRONIZA POSTS DO INSTAGRAM - BUSCA DADOS DA API E POPULA O BANCO DE DADOS
 export const syncPosts = asyncHandler(async (req: AuthRequest, res: Response) => {
   // In a real app, this would use the access token to fetch data from Graph API
   // Here we will just seed some realistic data if it doesn't exist
@@ -26,7 +28,7 @@ export const syncPosts = asyncHandler(async (req: AuthRequest, res: Response) =>
   res.json({ message: "Synced successfully", count: 10 });
 });
 
-// Seed function to populate data for demo
+// POPULA DADOS DEMONSTRATIVOS NO BANCO DE DADOS - CRIA MÉTRICAS DIÁRIAS E POSTS DE EXEMPLO
 async function seedCompanyData(companyId: number) {
   const existingPosts = await storage.getPosts(companyId);
   if (existingPosts.length > 0) return; // Already seeded

@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 
+// MIDDLEWARE DE LOGGING - REGISTRA REQUISIÇÕES HTTP COM MÉTODO, PATH, STATUS E TEMPO DE RESPOSTA
 export function logger(req: Request, res: Response, next: NextFunction) {
   const start = Date.now();
   const path = req.path;

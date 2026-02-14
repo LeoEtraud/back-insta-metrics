@@ -2,19 +2,20 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { storage } from "../storage";
-import { api } from "../shared/routes";
-import { USER_ROLES } from "../shared/schema";
+import { storage } from "../services/storage";
+import { api } from "../types/routes";
+import { USER_ROLES } from "../types/schema";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 import { asyncHandler } from "../utils/asyncHandler";
 import type { AuthRequest } from "../middlewares/auth";
 import { sendPasswordResetCode } from "../utils/email";
 
-// Gera código de 6 dígitos numéricos
+// GERA CÓDIGO DE 6 DÍGITOS NUMÉRICOS PARA RECUPERAÇÃO DE SENHA
 const generateResetCode = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+// PROCESSA SOLICITAÇÃO DE RECUPERAÇÃO DE SENHA - GERA E ENVIA CÓDIGO DE 6 DÍGITOS POR EMAIL
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email } = api.auth.forgotPassword.input.parse(req.body);
   const user = await storage.getUserByEmail(email);
@@ -57,6 +58,7 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   res.json({ message: "Se o email existir, um código de recuperação foi enviado." });
 });
 
+// VERIFICA SE O CÓDIGO DE RECUPERAÇÃO DE SENHA É VÁLIDO E ESTÁ ASSOCIADO AO EMAIL
 export const verifyResetCode = asyncHandler(async (req: Request, res: Response) => {
   const { email, code } = api.auth.verifyResetCode.input.parse(req.body);
   
@@ -73,6 +75,7 @@ export const verifyResetCode = asyncHandler(async (req: Request, res: Response) 
   res.json({ message: "Código válido", valid: true });
 });
 
+// REDEFINE A SENHA DO USUÁRIO APÓS VALIDAÇÃO DO CÓDIGO DE RECUPERAÇÃO
 export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email, code, newPassword } = api.auth.resetPassword.input.parse(req.body);
   
@@ -97,6 +100,7 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   res.json({ message: "Senha atualizada com sucesso" });
 });
 
+// AUTENTICA USUÁRIO COM EMAIL E SENHA - RETORNA TOKENS DE ACESSO E REFRESH
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const input = api.auth.login.input.parse(req.body);
   const user = await storage.getUserByEmail(input.email);
@@ -131,6 +135,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   res.json({ accessToken, refreshToken, user });
 });
 
+// RENOVA O TOKEN DE ACESSO USANDO O TOKEN DE REFRESH VÁLIDO
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
   const { refreshToken } = req.body;
   if (!refreshToken) return res.status(401).json({ message: "Refresh token required" });
@@ -161,6 +166,7 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   }
 });
 
+// RETORNA OS DADOS DO USUÁRIO AUTENTICADO ATUAL
 export const me = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const userId = authReq.user?.userId;

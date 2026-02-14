@@ -1,8 +1,9 @@
 import type { Response } from "express";
-import { storage } from "../storage";
+import { storage } from "../services/storage";
 import { asyncHandler } from "../utils/asyncHandler";
 import type { AuthRequest } from "../middlewares/auth";
 
+// RETORNA RESUMO DAS MÉTRICAS DO DASHBOARD (SEGUIDORES, ALCANCE, POSTS, TAXA DE ENGAJAMENTO)
 export const getSummary = asyncHandler(async (req: AuthRequest, res: Response) => {
   const companyId = req.user?.companyId;
   if (!companyId) {
@@ -13,6 +14,7 @@ export const getSummary = asyncHandler(async (req: AuthRequest, res: Response) =
   res.json(summary);
 });
 
+// RETORNA AS MÉTRICAS DIÁRIAS PARA ANÁLISE DE TENDÊNCIAS
 export const getTrends = asyncHandler(async (req: AuthRequest, res: Response) => {
   const companyId = req.user?.companyId;
   if (!companyId) {

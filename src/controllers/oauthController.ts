@@ -2,12 +2,12 @@ import type { Request, Response } from "express";
 import passport from "passport";
 import "../config/passport";
 
-// Google OAuth - Iniciar autenticação
+// INICIA PROCESSO DE AUTENTICAÇÃO COM GOOGLE OAUTH
 export const googleAuth = passport.authenticate("google", {
   scope: ["profile", "email"],
 });
 
-// Google OAuth - Callback
+// PROCESSA CALLBACK DO GOOGLE OAUTH - RECEBE DADOS DO USUÁRIO E REDIRECIONA COM TOKENS
 export const googleCallback = (req: Request, res: Response) => {
   passport.authenticate("google", { session: false }, (err: any, data: any) => {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -40,12 +40,12 @@ export const googleCallback = (req: Request, res: Response) => {
   })(req, res);
 };
 
-// Microsoft OAuth - Iniciar autenticação
+// INICIA PROCESSO DE AUTENTICAÇÃO COM MICROSOFT OAUTH
 export const microsoftAuth = passport.authenticate("microsoft", {
   scope: ["openid", "profile", "email"],
 });
 
-// Microsoft OAuth - Callback
+// PROCESSA CALLBACK DO MICROSOFT OAUTH - RECEBE DADOS DO USUÁRIO E REDIRECIONA COM TOKENS
 export const microsoftCallback = (req: Request, res: Response) => {
   passport.authenticate("microsoft", { session: false }, (err: any, data: any) => {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";

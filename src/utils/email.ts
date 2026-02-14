@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 
-// Configuração do transporter de email
+// CRIA E CONFIGURA O TRANSPORTER DE EMAIL (NODEMAILER) COM AS CREDENCIAIS DAS VARIÁVEIS DE AMBIENTE
 const createTransporter = () => {
   // Configuração para desenvolvimento (pode usar Gmail, SendGrid, etc.)
   // Para produção, configure variáveis de ambiente
@@ -40,6 +40,7 @@ const createTransporter = () => {
   return nodemailer.createTransport(config);
 };
 
+// ENVIA EMAIL COM CÓDIGO DE RECUPERAÇÃO DE SENHA PARA O USUÁRIO - EM DESENVOLVIMENTO EXIBE NO CONSOLE
 export const sendPasswordResetCode = async (
   email: string,
   code: string

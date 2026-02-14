@@ -1,13 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { api } from "./shared/routes";
-import { authenticateToken } from "./middlewares/auth";
-import * as authController from "./controllers/authController";
-import * as oauthController from "./controllers/oauthController";
-import * as dashboardController from "./controllers/dashboardController";
-import * as instagramController from "./controllers/instagramController";
-import passport from "./config/passport";
+import { api } from "../types/routes";
+import { authenticateToken } from "../middlewares/auth";
+import * as authController from "../controllers/authController";
+import * as oauthController from "../controllers/oauthController";
+import * as dashboardController from "../controllers/dashboardController";
+import * as instagramController from "../controllers/instagramController";
 
+// REGISTRA TODAS AS ROTAS DA APLICAÇÃO NO EXPRESS - AUTENTICAÇÃO, OAUTH, DASHBOARD E INSTAGRAM
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -39,3 +39,4 @@ export async function registerRoutes(
 
   return httpServer;
 }
+

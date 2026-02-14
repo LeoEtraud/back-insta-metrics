@@ -4,8 +4,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx index.ts",
-    "build": "tsc && esbuild index.ts --bundle --platform=node --outfile=dist/index.cjs --format=cjs --external:@prisma/client --external:pg --external:pg-native",
+    "dev": "NODE_ENV=development tsx src/index.ts",
+    "build": "tsc && esbuild src/index.ts --bundle --platform=node --outfile=dist/index.cjs --format=cjs --external:@prisma/client --external:pg --external:pg-native",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc --noEmit",
     "db:generate": "prisma generate",

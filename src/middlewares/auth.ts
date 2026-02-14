@@ -11,6 +11,7 @@ export interface AuthRequest extends Request {
   };
 }
 
+// MIDDLEWARE DE AUTENTICAÇÃO - VERIFICA E VALIDA O TOKEN JWT NO HEADER AUTHORIZATION
 export function authenticateToken(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
