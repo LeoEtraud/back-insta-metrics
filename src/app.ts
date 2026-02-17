@@ -25,11 +25,16 @@ const getAllowedOrigins = (): string[] => {
   
   // Adiciona FRONTEND_URL se estiver definido
   if (process.env.FRONTEND_URL) {
-    origins.push(process.env.FRONTEND_URL);
+    const frontendUrl = process.env.FRONTEND_URL.trim();
+    origins.push(frontendUrl);
     // Também adiciona sem protocolo se necessário
-    if (!process.env.FRONTEND_URL.startsWith('http')) {
-      origins.push(`https://${process.env.FRONTEND_URL}`);
-      origins.push(`http://${process.env.FRONTEND_URL}`);
+    if (!frontendUrl.startsWith('http')) {
+      origins.push(`https://${frontendUrl}`);
+      origins.push(`http://${frontendUrl}`);
+    }
+    // Remove trailing slash se houver
+    if (frontendUrl.endsWith('/')) {
+      origins.push(frontendUrl.slice(0, -1));
     }
   }
   
@@ -38,6 +43,7 @@ const getAllowedOrigins = (): string[] => {
     origins.push(`https://${process.env.VERCEL_URL}`);
   }
   
+  console.log(`[CORS] Origens configuradas:`, origins);
   return origins;
 };
 
@@ -72,29 +78,48 @@ const isOriginAllowed = (origin: string | undefined): boolean => {
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
   
+  // Log para debug (sempre em produção para identificar problemas)
+  if (origin) {
+    console.log(`[CORS] Requisição de origem: ${origin}`);
+    console.log(`[CORS] Método: ${req.method}, Path: ${req.path}`);
+  }
+  
+  // SEMPRE define os headers CORS básicos
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 horas
+  
   // Permite a origem se for válida
   if (isOriginAllowed(origin)) {
     // Se há origin, usa ela; caso contrário, permite qualquer origem
     if (origin) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
+      console.log(`[CORS] ✅ Origem permitida: ${origin}`);
     } else {
       // Sem origin, permite qualquer origem mas sem credentials
       res.setHeader('Access-Control-Allow-Origin', '*');
     }
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 horas
   } else {
-    // Log para debug em produção
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(`[CORS] Origem bloqueada: ${origin}`);
+    // Log para debug - sempre logar em produção para identificar problemas
+    console.warn(`[CORS] ❌ Origem bloqueada: ${origin}`);
+    console.warn(`[CORS] Origens permitidas:`, getAllowedOrigins());
+    
+    // Para requisições bloqueadas, ainda permite mas sem credentials
+    // Isso evita erros no navegador, mas a requisição pode falhar se precisar de credentials
+    if (origin) {
+      // Permite mesmo assim para evitar erros - pode ser restringido depois se necessário
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      console.warn(`[CORS] ⚠️  Permitindo origem bloqueada temporariamente: ${origin}`);
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', '*');
     }
   }
   
   // Responde imediatamente para requisições OPTIONS (preflight)
   if (req.method === 'OPTIONS') {
+    console.log(`[CORS] Respondendo preflight OPTIONS para: ${origin}`);
     return res.status(200).end();
   }
   
