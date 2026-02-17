@@ -14,40 +14,40 @@ declare module "http" {
   }
 }
 
-// CONFIGURAÇÃO CORS - PERMITE COMUNICAÇÃO COM FRONTEND (LOCAL E PRODUÇÃO)
+// CONFIGURAÇÃO CORS RESTRITA - APENAS URLs ESPECÍFICAS DO FRONTEND E BACKEND
 // DEVE SER O PRIMEIRO MIDDLEWARE ANTES DE QUALQUER OUTRO
 const getAllowedOrigins = (): string[] => {
   const origins: string[] = [
+    // Desenvolvimento local
     "http://localhost:3000",
     "http://localhost:5173", // Vite dev server alternativo
-    "https://front-insta-metrics.vercel.app", // Frontend em produção
+    
+    // Produção - Frontend específico
+    "https://front-insta-metrics.vercel.app",
   ];
   
-  // Adiciona FRONTEND_URL se estiver definido
+  // Adiciona FRONTEND_URL se estiver definido (permite configuração via variável de ambiente)
   if (process.env.FRONTEND_URL) {
     const frontendUrl = process.env.FRONTEND_URL.trim();
-    origins.push(frontendUrl);
-    // Também adiciona sem protocolo se necessário
-    if (!frontendUrl.startsWith('http')) {
-      origins.push(`https://${frontendUrl}`);
-      origins.push(`http://${frontendUrl}`);
-    }
     // Remove trailing slash se houver
-    if (frontendUrl.endsWith('/')) {
-      origins.push(frontendUrl.slice(0, -1));
+    const cleanUrl = frontendUrl.endsWith('/') ? frontendUrl.slice(0, -1) : frontendUrl;
+    
+    // Adiciona com protocolo correto
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      origins.push(cleanUrl);
+    } else {
+      // Se não tiver protocolo, adiciona https
+      origins.push(`https://${cleanUrl}`);
     }
   }
   
-  // Adiciona URLs do Vercel (produção e preview)
-  if (process.env.VERCEL_URL) {
-    origins.push(`https://${process.env.VERCEL_URL}`);
-  }
-  
-  console.log(`[CORS] Origens configuradas:`, origins);
-  return origins;
+  // Remove duplicatas e ordena
+  const uniqueOrigins = Array.from(new Set(origins));
+  console.log(`[CORS] Origens permitidas (restritas):`, uniqueOrigins);
+  return uniqueOrigins;
 };
 
-// FUNÇÃO PARA VERIFICAR SE A ORIGEM É PERMITIDA
+// FUNÇÃO PARA VERIFICAR SE A ORIGEM É PERMITIDA - APENAS URLs ESPECÍFICAS
 const isOriginAllowed = (origin: string | undefined): boolean => {
   // Permite requisições sem origin (ex: Postman, mobile apps, server-side)
   if (!origin) {
@@ -56,22 +56,8 @@ const isOriginAllowed = (origin: string | undefined): boolean => {
   
   const allowedOrigins = getAllowedOrigins();
   
-  // Verifica se a origem está na lista de permitidas
-  if (allowedOrigins.includes(origin)) {
-    return true;
-  }
-  
-  // Permite qualquer subdomínio vercel.app (produção e preview)
-  if (origin.includes('vercel.app')) {
-    return true;
-  }
-  
-  // Permite localhost em qualquer porta (desenvolvimento)
-  if (origin.includes('localhost')) {
-    return true;
-  }
-  
-  return false;
+  // Verifica se a origem está EXATAMENTE na lista de permitidas (verificação estrita)
+  return allowedOrigins.includes(origin);
 };
 
 // MIDDLEWARE CORS CUSTOMIZADO - GARANTE COMPATIBILIDADE COM RENDER E VERCEL
@@ -90,37 +76,49 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader('Access-Control-Expose-Headers', 'Content-Type');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 horas
   
-  // Permite a origem se for válida
+  // Responde imediatamente para requisições OPTIONS (preflight)
+  if (req.method === 'OPTIONS') {
+    // Verifica se a origem é permitida antes de responder ao preflight
+    if (isOriginAllowed(origin)) {
+      if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+      }
+      console.log(`[CORS] ✅ Preflight OPTIONS permitido para: ${origin}`);
+      return res.status(200).end();
+    } else {
+      // Origem não permitida - bloqueia preflight
+      console.warn(`[CORS] ❌ Preflight OPTIONS bloqueado para: ${origin}`);
+      console.warn(`[CORS] Origens permitidas:`, getAllowedOrigins());
+      return res.status(403).json({ 
+        error: 'CORS policy: Origin not allowed',
+        allowedOrigins: getAllowedOrigins()
+      });
+    }
+  }
+  
+  // Verifica se a origem é permitida para requisições normais (apenas URLs específicas)
   if (isOriginAllowed(origin)) {
-    // Se há origin, usa ela; caso contrário, permite qualquer origem
+    // Se há origin, usa ela; caso contrário, permite qualquer origem (apenas para requisições sem origin)
     if (origin) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       console.log(`[CORS] ✅ Origem permitida: ${origin}`);
     } else {
-      // Sem origin, permite qualquer origem mas sem credentials
+      // Sem origin, permite qualquer origem mas sem credentials (para ferramentas como Postman)
       res.setHeader('Access-Control-Allow-Origin', '*');
     }
   } else {
-    // Log para debug - sempre logar em produção para identificar problemas
+    // Origem não permitida - bloqueia e loga
     console.warn(`[CORS] ❌ Origem bloqueada: ${origin}`);
     console.warn(`[CORS] Origens permitidas:`, getAllowedOrigins());
     
-    // Para requisições bloqueadas, ainda permite mas sem credentials
-    // Isso evita erros no navegador, mas a requisição pode falhar se precisar de credentials
-    if (origin) {
-      // Permite mesmo assim para evitar erros - pode ser restringido depois se necessário
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      console.warn(`[CORS] ⚠️  Permitindo origem bloqueada temporariamente: ${origin}`);
-    } else {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-    }
-  }
-  
-  // Responde imediatamente para requisições OPTIONS (preflight)
-  if (req.method === 'OPTIONS') {
-    console.log(`[CORS] Respondendo preflight OPTIONS para: ${origin}`);
-    return res.status(200).end();
+    // NÃO define Access-Control-Allow-Origin para origens não permitidas
+    // Isso fará com que o navegador bloqueie a requisição
+    return res.status(403).json({ 
+      error: 'CORS policy: Origin not allowed',
+      allowedOrigins: getAllowedOrigins()
+    });
   }
   
   next();
