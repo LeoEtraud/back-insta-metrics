@@ -23,17 +23,10 @@ export function log(message: string, source = "express") {
     app.use(errorHandler);
 
     const port = parseInt(process.env.PORT || "5000", 10);
-    httpServer.listen(
-      {
-        port,
-        host: "0.0.0.0",
-        reusePort: true,
-      },
-      () => {
-        log(`Server running on port ${port}`);
-        log(`Environment: ${process.env.NODE_ENV || "development"}`);
-      },
-    );
+    httpServer.listen(port, "0.0.0.0", () => {
+      log(`Server running on port ${port}`);
+      log(`Environment: ${process.env.NODE_ENV || "development"}`);
+    });
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);

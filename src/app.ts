@@ -71,9 +71,6 @@ const corsOptions = {
 // APLICA CORS COMO PRIMEIRO MIDDLEWARE
 app.use(cors(corsOptions));
 
-// TRATA REQUISIÇÕES OPTIONS (PREFLIGHT) EXPLICITAMENTE
-app.options('*', cors(corsOptions));
-
 // ADICIONA HEADERS CORS MANUALMENTE PARA GARANTIR COMPATIBILIDADE COM VERCEL
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;

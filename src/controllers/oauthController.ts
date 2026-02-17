@@ -42,7 +42,8 @@ export const googleCallback = (req: Request, res: Response) => {
 
 // INICIA PROCESSO DE AUTENTICAÇÃO COM MICROSOFT OAUTH
 export const microsoftAuth = passport.authenticate("microsoft", {
-  scope: ["openid", "profile", "email"],
+  // User.Read é necessário para acessar o Microsoft Graph API
+  scope: ["openid", "profile", "email", "https://graph.microsoft.com/User.Read"],
 });
 
 // PROCESSA CALLBACK DO MICROSOFT OAUTH - RECEBE DADOS DO USUÁRIO E REDIRECIONA COM TOKENS

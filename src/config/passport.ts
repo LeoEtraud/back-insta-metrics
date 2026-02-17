@@ -104,20 +104,27 @@ passport.use(
 );
 
 // CONFIGURA ESTRATÉGIA DE AUTENTICAÇÃO MICROSOFT OAUTH - BUSCA/CRIA USUÁRIO E GERA TOKENS JWT
+// ✅ USA MICROSOFT IDENTITY PLATFORM v2.0 E MICROSOFT GRAPH API (APIs MODERNAS E SUPORTADAS)
+// ❌ NÃO USA Azure AD Graph ou ADAL (descontinuadas desde 30/06/2020)
 passport.use(
   "microsoft",
   new OAuth2Strategy(
     {
+      // Microsoft Identity Platform v2.0 endpoints (modernos e suportados)
       authorizationURL: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
       tokenURL: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
       clientID: process.env.MICROSOFT_CLIENT_ID || "",
       clientSecret: process.env.MICROSOFT_CLIENT_SECRET || "",
       callbackURL: process.env.MICROSOFT_CALLBACK_URL || "/api/auth/microsoft/callback",
-      scope: "openid profile email",
+      // User.Read é necessário para acessar https://graph.microsoft.com/v1.0/me
+      scope: "openid profile email https://graph.microsoft.com/User.Read",
     },
     async (accessToken: string, refreshToken: string, params: any, done: (error: any, user?: any) => void) => {
       try {
-        // Busca informações do usuário usando o access token
+        console.log("🔵 [MICROSOFT OAUTH] Token recebido, buscando informações do usuário...");
+        
+        // ✅ USA MICROSOFT GRAPH API (API moderna e suportada)
+        // ❌ NÃO USA graph.windows.net (Azure AD Graph - descontinuada)
         const userInfoResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -125,7 +132,33 @@ passport.use(
         });
 
         if (!userInfoResponse.ok) {
-          return done(new Error("Falha ao obter informações do usuário da Microsoft"), false);
+          const errorText = await userInfoResponse.text();
+          let errorMessage = "Falha ao obter informações do usuário da Microsoft";
+          
+          try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.error?.message) {
+              errorMessage = errorJson.error.message;
+            } else if (errorJson.error?.code) {
+              errorMessage = `Erro ${errorJson.error.code}: ${errorMessage}`;
+            }
+          } catch (e) {
+            // Se não conseguir parsear, usa a mensagem padrão
+          }
+          
+          console.error("❌ [MICROSOFT OAUTH] Erro ao buscar informações do usuário:", {
+            status: userInfoResponse.status,
+            statusText: userInfoResponse.statusText,
+            error: errorText,
+            message: errorMessage,
+          });
+          
+          // Mensagem mais específica para erro 403
+          if (userInfoResponse.status === 403) {
+            errorMessage = "Permissão negada. Verifique se a aplicação tem a permissão 'User.Read' configurada no Azure Portal e se o usuário consentiu com as permissões.";
+          }
+          
+          return done(new Error(errorMessage), false);
         }
 
         const userInfo = await userInfoResponse.json() as {
@@ -135,11 +168,20 @@ passport.use(
           givenName?: string;
           id: string;
         };
+        
+        console.log("🔵 [MICROSOFT OAUTH] Perfil recebido:", {
+          id: userInfo.id,
+          displayName: userInfo.displayName,
+          mail: userInfo.mail,
+          userPrincipalName: userInfo.userPrincipalName,
+        });
+        
         const email = userInfo.mail || userInfo.userPrincipalName;
         const name = userInfo.displayName || userInfo.givenName || "User";
         const providerId = userInfo.id;
 
         if (!email) {
+          console.error("❌ [MICROSOFT OAUTH] Email não encontrado no perfil");
           return done(new Error("Email não encontrado no perfil da Microsoft"), false);
         }
 
