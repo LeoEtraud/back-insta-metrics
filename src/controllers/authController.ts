@@ -33,15 +33,38 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   // Salva código no banco
   await storage.setUserResetCode(email, code, expiresAt);
   
-  // Verifica se email está configurado
-  const emailConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+  // Verifica se email está configurado (Resend ou SMTP tradicional)
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const hasResend = !!(resendApiKey && resendApiKey.trim().length > 0);
+  const hasSmtp = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+  const emailConfigured = hasResend || hasSmtp;
+  
+  // Logs de debug para verificar variáveis de ambiente
+  console.log(`🔍 [DEBUG] Verificando configuração de email:`);
+  console.log(`   RESEND_API_KEY existe: ${!!resendApiKey}`);
+  console.log(`   RESEND_API_KEY tem valor: ${hasResend}`);
+  console.log(`   EMAIL_USER existe: ${!!process.env.EMAIL_USER}`);
+  console.log(`   EMAIL_PASS existe: ${!!process.env.EMAIL_PASS}`);
+  console.log(`   Email configurado: ${emailConfigured}`);
   
   if (!emailConfigured) {
     console.warn("⚠️  EMAIL não configurado - código gerado mas não será enviado");
     console.warn(`💡 Código gerado para ${email}: ${code}`);
+    console.warn(`💡 Configure no Render:`);
+    console.warn(`   Opção 1 (Recomendado): RESEND_API_KEY=re_sua_chave_aqui`);
+    console.warn(`   Opção 2: EMAIL_USER, EMAIL_PASS, EMAIL_HOST, EMAIL_PORT`);
     return res.status(500).json({ 
       message: "Serviço de email não configurado. Entre em contato com o suporte." 
     });
+  }
+  
+  // Log qual serviço está sendo usado
+  if (hasResend) {
+    console.log(`📧 ✅ Usando Resend API para envio de email`);
+    console.log(`   API Key prefix: ${resendApiKey?.substring(0, 3)}...`);
+  } else {
+    console.log(`📧 ⚠️  Usando SMTP (${process.env.EMAIL_HOST || "smtp.gmail.com"}) - Resend não detectado`);
+    console.log(`   💡 Para usar Resend, configure RESEND_API_KEY no Render`);
   }
   
   // Envia email com código de forma assíncrona (não bloqueia a resposta)
