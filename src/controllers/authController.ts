@@ -18,44 +18,47 @@ const generateResetCode = (): string => {
 // PROCESSA SOLICITAÇÃO DE RECUPERAÇÃO DE SENHA - GERA E ENVIA CÓDIGO DE 6 DÍGITOS POR EMAIL
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email } = api.auth.forgotPassword.input.parse(req.body);
+  
+  // Verifica se o email existe no sistema ANTES de gerar o código
   const user = await storage.getUserByEmail(email);
   
-  if (user) {
-    // Gera código de 6 dígitos
-    const code = generateResetCode();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
-    
-    // Salva código no banco
-    await storage.setUserResetCode(email, code, expiresAt);
-    
-    // Verifica se email está configurado
-    const emailConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-    
-    // Envia email com código
-    try {
-      await sendPasswordResetCode(email, code);
-      console.log(`✅ Processo de recuperação iniciado para: ${email}`);
-    } catch (error: any) {
-      console.error("\n❌ Erro crítico ao enviar email de recuperação");
-      console.error("Email:", email);
-      console.error("Código gerado:", code);
-      console.error("Erro completo:", error);
-      
-      // Em caso de erro, ainda retorna sucesso para não expor se o email existe
-      // Mas em desenvolvimento, podemos ser mais verbosos
-      if (process.env.NODE_ENV === "development") {
-        console.error("\n⚠️  ATENÇÃO: O código foi gerado e salvo no banco, mas o email não foi enviado.");
-        console.error("💡 Você pode usar o código diretamente:", code);
-        console.error("💡 Ou verificar os logs acima para corrigir o problema de envio.\n");
-      }
-      
-      // Não retorna erro para o cliente (segurança)
-      // O código já foi salvo no banco, então o usuário pode tentar usar mesmo sem receber o email
-    }
+  if (!user) {
+    return res.status(400).json({ message: "Email não cadastrado no sistema" });
   }
   
-  // Always return 200 security best practice
-  res.json({ message: "Se o email existir, um código de recuperação foi enviado." });
+  // Gera código de 6 dígitos
+  const code = generateResetCode();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+  
+  // Salva código no banco
+  await storage.setUserResetCode(email, code, expiresAt);
+  
+  // Verifica se email está configurado
+  const emailConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+  
+  // Envia email com código
+  try {
+    await sendPasswordResetCode(email, code);
+    console.log(`✅ Processo de recuperação iniciado para: ${email}`);
+  } catch (error: any) {
+    console.error("\n❌ Erro crítico ao enviar email de recuperação");
+    console.error("Email:", email);
+    console.error("Código gerado:", code);
+    console.error("Erro completo:", error);
+    
+    // Em caso de erro, ainda retorna sucesso para não expor se o email existe
+    // Mas em desenvolvimento, podemos ser mais verbosos
+    if (process.env.NODE_ENV === "development") {
+      console.error("\n⚠️  ATENÇÃO: O código foi gerado e salvo no banco, mas o email não foi enviado.");
+      console.error("💡 Você pode usar o código diretamente:", code);
+      console.error("💡 Ou verificar os logs acima para corrigir o problema de envio.\n");
+    }
+    
+    // Não retorna erro para o cliente (segurança)
+    // O código já foi salvo no banco, então o usuário pode tentar usar mesmo sem receber o email
+  }
+  
+  res.json({ message: "Código de recuperação enviado para seu email." });
 });
 
 // VERIFICA SE O CÓDIGO DE RECUPERAÇÃO DE SENHA É VÁLIDO E ESTÁ ASSOCIADO AO EMAIL
