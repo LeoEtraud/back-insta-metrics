@@ -87,11 +87,11 @@ const sendViaResendAPI = async (email: string, code: string): Promise<void> => {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Erro desconhecido" }));
+    const error = await response.json().catch(() => ({ message: "Erro desconhecido" })) as { message?: string };
     throw new Error(`Resend API error: ${error.message || response.statusText}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as { id: string };
   console.log(`✅ [RESEND API] Email enviado com sucesso`);
   console.log(`📧 Message ID: ${data.id}`);
 };
@@ -163,7 +163,7 @@ const createTransporter = () => {
   // Remove espaços da senha (caso tenha sido copiada com espaços)
   const cleanPassword = emailPass.trim().replace(/\s+/g, "");
 
-  const config = {
+  const config: any = {
     host: emailHost,
     port: emailPort,
     secure: emailPort === 465,
