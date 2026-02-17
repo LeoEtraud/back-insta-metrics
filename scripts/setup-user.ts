@@ -45,9 +45,6 @@ async function setupUser() {
           role: USER_ROLES.ADMIN_COMPANY,
           companyId: company.id,
         },
-        include: {
-          company: true,
-        },
       });
       
       console.log("✅ Usuário criado com sucesso!");
@@ -57,7 +54,7 @@ async function setupUser() {
       console.log(`   Provider: ${user.provider}`);
       console.log(`   Role: ${user.role}`);
       console.log(`   Company ID: ${user.companyId}`);
-      console.log(`   Company: ${user.company?.name}`);
+      console.log(`   Company: ${company.name}`);
       console.log(`   Senha: ${PASSWORD}`);
     } else {
       console.log("✅ Usuário já existe!");
@@ -119,23 +116,22 @@ async function setupUser() {
       }
     }
     
-    // Busca o usuário atualizado com company
-    user = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: { company: true },
-    });
+    // Busca a company para exibir o nome
+    const userCompany = user.companyId 
+      ? await prisma.company.findUnique({ where: { id: user.companyId } })
+      : null;
     
     console.log("\n📋 Resumo da configuração:");
-    console.log(`   ID: ${user?.id}`);
-    console.log(`   Email: ${user?.email}`);
-    console.log(`   Nome: ${user?.name}`);
-    console.log(`   Provider: ${user?.provider || "local"}`);
-    console.log(`   Role: ${user?.role}`);
-    console.log(`   Company ID: ${user?.companyId}`);
-    console.log(`   Company: ${user?.company?.name || "N/A"}`);
-    console.log(`   Tem senha: ${user?.password ? "Sim" : "Não"}`);
+    console.log(`   ID: ${user.id}`);
+    console.log(`   Email: ${user.email}`);
+    console.log(`   Nome: ${user.name}`);
+    console.log(`   Provider: ${user.provider || "local"}`);
+    console.log(`   Role: ${user.role}`);
+    console.log(`   Company ID: ${user.companyId}`);
+    console.log(`   Company: ${userCompany?.name || "N/A"}`);
+    console.log(`   Tem senha: ${user.password ? "Sim" : "Não"}`);
     console.log(`   Senha: ${PASSWORD}`);
-    console.log(`   Pode fazer login com credenciais: ${user?.password ? "Sim" : "Não"}`);
+    console.log(`   Pode fazer login com credenciais: ${user.password ? "Sim" : "Não"}`);
     console.log(`   Pode fazer login social: Sim (se o email corresponder ao Google)`);
     
     console.log("\n✅ Configuração concluída!");
