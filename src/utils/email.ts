@@ -29,6 +29,14 @@ const createTransporter = () => {
     tls: {
       rejectUnauthorized: false, // Para desenvolvimento
     },
+    // Timeouts para evitar travamentos
+    connectionTimeout: 10000, // 10 segundos para conectar
+    greetingTimeout: 10000, // 10 segundos para greeting
+    socketTimeout: 10000, // 10 segundos para socket
+    // Pool de conexões
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 3,
   };
 
   console.log(`📧 Configurando email:`);
@@ -183,11 +191,16 @@ export const sendPasswordResetCode = async (
   };
 
   try {
-    // Verifica conexão antes de enviar
-    await transporter.verify();
-    console.log("✅ Conexão com servidor de email verificada com sucesso");
+    // Envia email diretamente sem verificar conexão primeiro (mais rápido)
+    // A verificação de conexão pode demorar muito em produção
+    // Adiciona timeout de 15 segundos para evitar travamentos
+    const sendPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error("Timeout: envio de email excedeu 15 segundos")), 15000)
+    );
     
-    const info = await transporter.sendMail(mailOptions);
+    const info = await Promise.race([sendPromise, timeoutPromise]);
+    
     console.log(`✅ [EMAIL] Código de recuperação enviado para ${email}`);
     console.log(`📧 Message ID: ${info.messageId}`);
     console.log(`📬 Response: ${info.response}`);

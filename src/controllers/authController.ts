@@ -36,28 +36,31 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   // Verifica se email está configurado
   const emailConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
   
-  // Envia email com código
-  try {
-    await sendPasswordResetCode(email, code);
-    console.log(`✅ Processo de recuperação iniciado para: ${email}`);
-  } catch (error: any) {
-    console.error("\n❌ Erro crítico ao enviar email de recuperação");
-    console.error("Email:", email);
-    console.error("Código gerado:", code);
-    console.error("Erro completo:", error);
-    
-    // Em caso de erro, ainda retorna sucesso para não expor se o email existe
-    // Mas em desenvolvimento, podemos ser mais verbosos
-    if (process.env.NODE_ENV === "development") {
-      console.error("\n⚠️  ATENÇÃO: O código foi gerado e salvo no banco, mas o email não foi enviado.");
-      console.error("💡 Você pode usar o código diretamente:", code);
-      console.error("💡 Ou verificar os logs acima para corrigir o problema de envio.\n");
-    }
-    
-    // Não retorna erro para o cliente (segurança)
-    // O código já foi salvo no banco, então o usuário pode tentar usar mesmo sem receber o email
+  if (!emailConfigured) {
+    console.warn("⚠️  EMAIL não configurado - código gerado mas não será enviado");
+    console.warn(`💡 Código gerado para ${email}: ${code}`);
+    return res.status(500).json({ 
+      message: "Serviço de email não configurado. Entre em contato com o suporte." 
+    });
   }
   
+  // Envia email com código de forma assíncrona (não bloqueia a resposta)
+  // Mas ainda aguarda um tempo razoável para detectar erros imediatos
+  sendPasswordResetCode(email, code)
+    .then(() => {
+      console.log(`✅ [EMAIL] Processo de recuperação concluído para: ${email}`);
+    })
+    .catch((error: any) => {
+      console.error("\n❌ [EMAIL ERROR] Falha ao enviar email de recuperação");
+      console.error("Email:", email);
+      console.error("Código gerado:", code);
+      console.error("Erro:", error.message);
+      console.error("\n💡 O código foi salvo no banco e pode ser usado mesmo sem o email chegar.");
+      console.error("💡 Verifique os logs acima para diagnosticar o problema de envio.\n");
+    });
+  
+  // Retorna resposta imediatamente (não espera o email ser enviado)
+  // Isso evita timeouts na requisição HTTP
   res.json({ message: "Código de recuperação enviado para seu email." });
 });
 
