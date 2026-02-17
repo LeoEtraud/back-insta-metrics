@@ -4,8 +4,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx src/index.ts",
-    "build": "prisma generate && tsc && esbuild src/index.ts --bundle --platform=node --outfile=dist/index.cjs --format=cjs --external:@prisma/client --external:pg --external:pg-native",
+    "dev": "NODE_ENV=development tsx src/server.ts",
+    "build": "prisma generate && tsc && esbuild src/server.ts --bundle --platform=node --outfile=dist/index.cjs --format=cjs --external:@prisma/client --external:pg --external:pg-native",
     "vercel-build": "prisma generate",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc --noEmit",

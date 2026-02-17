@@ -4,7 +4,9 @@ import bcrypt from "bcryptjs";
 import { USER_ROLES } from "../src/types/schema";
 
 const EMAIL = "leonardo.duarte.of@gmail.com";
-const DEFAULT_PASSWORD = "senha123"; // Altere esta senha após o primeiro login
+const PASSWORD = "123456";
+const USER_NAME = "Leonardo Duarte";
+const COMPANY_NAME = "Insta Metrics";
 
 async function setupUser() {
   try {
@@ -16,25 +18,47 @@ async function setupUser() {
     if (!user) {
       console.log("➕ Usuário não encontrado. Criando novo usuário...");
       
+      // Cria ou busca uma company
+      let company = await prisma.company.findFirst({
+        where: { name: COMPANY_NAME },
+      });
+      
+      if (!company) {
+        console.log(`🏢 Criando company: ${COMPANY_NAME}`);
+        company = await prisma.company.create({
+          data: { name: COMPANY_NAME },
+        });
+        console.log(`✅ Company criada com ID: ${company.id}`);
+      } else {
+        console.log(`✅ Company já existe com ID: ${company.id}`);
+      }
+      
       // Cria usuário com provider "local" e senha
-      const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+      const hashedPassword = await bcrypt.hash(PASSWORD, 10);
       
       user = await prisma.user.create({
         data: {
           email: EMAIL,
-          name: "Leonardo Duarte",
+          name: USER_NAME,
           password: hashedPassword,
           provider: "local",
           role: USER_ROLES.ADMIN_COMPANY,
+          companyId: company.id,
+        },
+        include: {
+          company: true,
         },
       });
       
       console.log("✅ Usuário criado com sucesso!");
       console.log(`   ID: ${user.id}`);
       console.log(`   Email: ${user.email}`);
+      console.log(`   Nome: ${user.name}`);
       console.log(`   Provider: ${user.provider}`);
-      console.log(`   Senha padrão: ${DEFAULT_PASSWORD}`);
-      console.log("⚠️  IMPORTANTE: Altere a senha após o primeiro login!");
+      console.log(`   Role: ${user.role}`);
+      console.log(`   Company ID: ${user.companyId}`);
+      console.log(`   Company: ${user.company?.name}`);
+      console.log(`   Senha: ${PASSWORD}`);
     } else {
       console.log("✅ Usuário já existe!");
       console.log(`   ID: ${user.id}`);
@@ -45,12 +69,36 @@ async function setupUser() {
       // Atualiza o usuário para garantir que possa usar ambos os métodos
       const updates: any = {};
       
-      // Se não tem senha, define uma senha padrão
+      // Se não tem senha, define a senha
       if (!user.password) {
-        console.log("🔐 Definindo senha padrão...");
-        const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+        console.log("🔐 Definindo senha...");
+        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
         updates.password = hashedPassword;
-        console.log("⚠️  IMPORTANTE: Altere a senha após o primeiro login!");
+      } else {
+        // Atualiza a senha mesmo se já existir
+        console.log("🔐 Atualizando senha...");
+        const hashedPassword = await bcrypt.hash(PASSWORD, 10);
+        updates.password = hashedPassword;
+      }
+      
+      // Garante que o usuário tenha uma company
+      if (!user.companyId) {
+        let company = await prisma.company.findFirst({
+          where: { name: COMPANY_NAME },
+        });
+        
+        if (!company) {
+          console.log(`🏢 Criando company: ${COMPANY_NAME}`);
+          company = await prisma.company.create({
+            data: { name: COMPANY_NAME },
+          });
+        }
+        updates.companyId = company.id;
+      }
+      
+      // Atualiza o nome se necessário
+      if (user.name !== USER_NAME) {
+        updates.name = USER_NAME;
       }
       
       // Se o provider não é "local", mantém o provider atual mas permite login com senha também
@@ -71,11 +119,23 @@ async function setupUser() {
       }
     }
     
+    // Busca o usuário atualizado com company
+    user = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { company: true },
+    });
+    
     console.log("\n📋 Resumo da configuração:");
-    console.log(`   Email: ${user.email}`);
-    console.log(`   Provider: ${user.provider || "local"}`);
-    console.log(`   Tem senha: ${user.password ? "Sim" : "Não"}`);
-    console.log(`   Pode fazer login com credenciais: ${user.password ? "Sim" : "Não"}`);
+    console.log(`   ID: ${user?.id}`);
+    console.log(`   Email: ${user?.email}`);
+    console.log(`   Nome: ${user?.name}`);
+    console.log(`   Provider: ${user?.provider || "local"}`);
+    console.log(`   Role: ${user?.role}`);
+    console.log(`   Company ID: ${user?.companyId}`);
+    console.log(`   Company: ${user?.company?.name || "N/A"}`);
+    console.log(`   Tem senha: ${user?.password ? "Sim" : "Não"}`);
+    console.log(`   Senha: ${PASSWORD}`);
+    console.log(`   Pode fazer login com credenciais: ${user?.password ? "Sim" : "Não"}`);
     console.log(`   Pode fazer login social: Sim (se o email corresponder ao Google)`);
     
     console.log("\n✅ Configuração concluída!");
