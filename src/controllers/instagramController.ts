@@ -11,17 +11,11 @@ export const getPosts = asyncHandler(async (req: AuthRequest, res: Response) => 
     return res.status(401).json({ message: "Não autenticado" });
   }
 
-  // Admin pode acessar dados de todas as empresas (por enquanto usa sua própria empresa se tiver)
-  // Cliente só acessa dados da sua empresa
-  const companyId = user.companyId;
-  if (!companyId && user.role !== USER_ROLES.ADMIN) {
-    return res.status(400).json({ message: "Usuário não associado a uma empresa" });
-  }
+  // Obtém companyId da query string (admin pode especificar, cliente deve especificar)
+  const companyId = req.query.companyId ? parseInt(req.query.companyId as string) : null;
   
-  // Se for admin sem empresa, retorna dados vazios ou permite especificar companyId via query
-  // Por enquanto, admin precisa ter empresa associada
-  if (!companyId) {
-    return res.status(400).json({ message: "Usuário não associado a uma empresa" });
+  if (!companyId || isNaN(companyId)) {
+    return res.status(400).json({ message: "companyId é obrigatório na query string" });
   }
 
   const posts = await storage.getPosts(companyId);
@@ -37,17 +31,11 @@ export const syncPosts = asyncHandler(async (req: AuthRequest, res: Response) =>
 
   // In a real app, this would use the access token to fetch data from Graph API
   // Here we will just seed some realistic data if it doesn't exist
-  // Admin pode acessar dados de todas as empresas (por enquanto usa sua própria empresa se tiver)
-  // Cliente só acessa dados da sua empresa
-  const companyId = user.companyId;
-  if (!companyId && user.role !== USER_ROLES.ADMIN) {
-    return res.status(400).json({ message: "Usuário não associado a uma empresa" });
-  }
+  // Obtém companyId da query string (admin pode especificar, cliente deve especificar)
+  const companyId = req.query.companyId ? parseInt(req.query.companyId as string) : null;
   
-  // Se for admin sem empresa, retorna dados vazios ou permite especificar companyId via query
-  // Por enquanto, admin precisa ter empresa associada
-  if (!companyId) {
-    return res.status(400).json({ message: "Usuário não associado a uma empresa" });
+  if (!companyId || isNaN(companyId)) {
+    return res.status(400).json({ message: "companyId é obrigatório na query string" });
   }
   
   await seedCompanyData(companyId);
