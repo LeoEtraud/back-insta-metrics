@@ -6,7 +6,6 @@ const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || "dev-refresh-se
 export interface TokenPayload {
   userId: number;
   role?: string;
-  companyId?: number | null;
 }
 
 // GERA TOKEN JWT DE ACESSO COM EXPIRAÇÃO DE 15 MINUTOS

@@ -16,10 +16,8 @@ export type InsertDailyMetric = Prisma.DailyMetricCreateInput;
 
 // Constants
 export const USER_ROLES = {
-  ADMIN_SAAS: "admin_saas",
-  ADMIN_COMPANY: "admin_company",
-  ANALYST: "analyst",
-  VIEWER: "viewer",
+  ADMIN: "admin",
+  CLIENT: "cliente",
 } as const;
 
 export const POST_TYPES = {
@@ -46,5 +44,4 @@ export interface AuthResponse {
 export interface TokenPayload {
   userId: number;
   role: string;
-  companyId: number | null;
 }

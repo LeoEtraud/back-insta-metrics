@@ -1,14 +1,27 @@
 import type { Response } from "express";
 import { storage } from "../services/storage";
-import { POST_TYPES } from "../types/schema";
+import { POST_TYPES, USER_ROLES } from "../types/schema";
 import { asyncHandler } from "../utils/asyncHandler";
 import type { AuthRequest } from "../middlewares/auth";
 
 // RETORNA TODOS OS POSTS DO INSTAGRAM DA EMPRESA DO USUÁRIO AUTENTICADO
 export const getPosts = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const companyId = req.user?.companyId;
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: "Não autenticado" });
+  }
+
+  // Admin pode acessar dados de todas as empresas (por enquanto usa sua própria empresa se tiver)
+  // Cliente só acessa dados da sua empresa
+  const companyId = user.companyId;
+  if (!companyId && user.role !== USER_ROLES.ADMIN) {
+    return res.status(400).json({ message: "Usuário não associado a uma empresa" });
+  }
+  
+  // Se for admin sem empresa, retorna dados vazios ou permite especificar companyId via query
+  // Por enquanto, admin precisa ter empresa associada
   if (!companyId) {
-    return res.status(400).json({ message: "User not associated with a company" });
+    return res.status(400).json({ message: "Usuário não associado a uma empresa" });
   }
 
   const posts = await storage.getPosts(companyId);
@@ -17,11 +30,24 @@ export const getPosts = asyncHandler(async (req: AuthRequest, res: Response) => 
 
 // SINCRONIZA POSTS DO INSTAGRAM - BUSCA DADOS DA API E POPULA O BANCO DE DADOS
 export const syncPosts = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: "Não autenticado" });
+  }
+
   // In a real app, this would use the access token to fetch data from Graph API
   // Here we will just seed some realistic data if it doesn't exist
-  const companyId = req.user?.companyId;
+  // Admin pode acessar dados de todas as empresas (por enquanto usa sua própria empresa se tiver)
+  // Cliente só acessa dados da sua empresa
+  const companyId = user.companyId;
+  if (!companyId && user.role !== USER_ROLES.ADMIN) {
+    return res.status(400).json({ message: "Usuário não associado a uma empresa" });
+  }
+  
+  // Se for admin sem empresa, retorna dados vazios ou permite especificar companyId via query
+  // Por enquanto, admin precisa ter empresa associada
   if (!companyId) {
-    return res.status(400).json({ message: "User not associated with a company" });
+    return res.status(400).json({ message: "Usuário não associado a uma empresa" });
   }
   
   await seedCompanyData(companyId);

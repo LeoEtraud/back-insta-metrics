@@ -1,11 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { api } from "../types/routes";
-import { authenticateToken } from "../middlewares/auth";
+import { authenticateToken, requireAdmin } from "../middlewares/auth";
 import * as authController from "../controllers/authController";
 import * as oauthController from "../controllers/oauthController";
 import * as dashboardController from "../controllers/dashboardController";
 import * as instagramController from "../controllers/instagramController";
+import * as userController from "../controllers/userController";
 
 // REGISTRA TODAS AS ROTAS DA APLICAÇÃO NO EXPRESS - AUTENTICAÇÃO, OAUTH, DASHBOARD E INSTAGRAM
 export async function registerRoutes(
@@ -36,6 +37,13 @@ export async function registerRoutes(
   // Instagram Routes (Protected)
   app.get(api.instagram.posts.path, authenticateToken, instagramController.getPosts);
   app.post(api.instagram.sync.path, authenticateToken, instagramController.syncPosts);
+
+  // User Management Routes (Protected)
+  app.get(api.users.list.path, authenticateToken, userController.listUsers);
+  app.get(api.users.get.path, authenticateToken, userController.getUser);
+  app.post(api.users.create.path, authenticateToken, requireAdmin, userController.createUser);
+  app.put(api.users.update.path, authenticateToken, userController.updateUser);
+  app.delete(api.users.delete.path, authenticateToken, requireAdmin, userController.deleteUser);
 
   return httpServer || null;
 }

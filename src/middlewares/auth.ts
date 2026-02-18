@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { USER_ROLES } from "../types/schema";
 
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "dev-access-secret-key-123";
 
@@ -7,7 +8,6 @@ export interface AuthRequest extends Request {
   user?: {
     userId: number;
     role: string;
-    companyId: number | null;
   };
 }
 
@@ -27,5 +27,19 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
     (req as AuthRequest).user = decoded;
     next();
   });
+}
+
+// MIDDLEWARE DE AUTORIZAÇÃO - VERIFICA SE O USUÁRIO É ADMINISTRADOR
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const authReq = req as AuthRequest;
+  if (!authReq.user) {
+    return res.status(401).json({ message: "Não autenticado" });
+  }
+
+  if (authReq.user.role !== USER_ROLES.ADMIN) {
+    return res.status(403).json({ message: "Acesso negado. Apenas administradores podem acessar este recurso." });
+  }
+
+  next();
 }
 

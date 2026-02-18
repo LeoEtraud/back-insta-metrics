@@ -137,6 +137,74 @@ export const api = {
         200: z.array(z.custom<DailyMetric>()),
       },
     }
+  },
+  users: {
+    list: {
+      method: "GET" as const,
+      path: "/api/users",
+      responses: {
+        200: z.array(z.custom<User>()),
+        401: errorSchemas.unauthorized,
+      },
+    },
+    get: {
+      method: "GET" as const,
+      path: "/api/users/:id",
+      input: z.object({ id: z.string() }),
+      responses: {
+        200: z.custom<User>(),
+        401: errorSchemas.unauthorized,
+        403: errorSchemas.forbidden,
+        404: errorSchemas.notFound,
+      },
+    },
+    create: {
+      method: "POST" as const,
+      path: "/api/users",
+      input: z.object({
+        email: z.string().email(),
+        password: z.string().min(6),
+        name: z.string().min(1),
+        instagramUsername: z.string().optional(),
+        role: z.enum(["admin", "cliente"]),
+      }),
+      responses: {
+        201: z.custom<User>(),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+        403: errorSchemas.forbidden,
+      },
+    },
+    update: {
+      method: "PUT" as const,
+      path: "/api/users/:id",
+      input: z.object({
+        id: z.string(),
+        email: z.string().email().optional(),
+        password: z.string().min(6).optional(),
+        name: z.string().min(1).optional(),
+        instagramUsername: z.string().optional(),
+        role: z.enum(["admin", "cliente"]).optional(),
+      }),
+      responses: {
+        200: z.custom<User>(),
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+        403: errorSchemas.forbidden,
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: "DELETE" as const,
+      path: "/api/users/:id",
+      input: z.object({ id: z.string() }),
+      responses: {
+        200: z.object({ message: z.string() }),
+        401: errorSchemas.unauthorized,
+        403: errorSchemas.forbidden,
+        404: errorSchemas.notFound,
+      },
+    },
   }
 };
 

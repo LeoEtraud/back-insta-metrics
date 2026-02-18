@@ -155,7 +155,6 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = generateAccessToken({
     userId: user.id,
     role: user.role,
-    companyId: user.companyId,
   });
   const refreshToken = generateRefreshToken({ userId: user.id });
 
@@ -186,7 +185,6 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
     const accessToken = generateAccessToken({
       userId: user.id,
       role: user.role,
-      companyId: user.companyId,
     });
     
     res.json({ accessToken });

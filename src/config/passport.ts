@@ -75,7 +75,6 @@ passport.use(
         const tokenData = {
           userId: user!.id,
           role: user!.role,
-          companyId: user!.companyId,
         };
 
         const jwtAccessToken = generateAccessToken(tokenData);
@@ -220,7 +219,6 @@ passport.use(
         const tokenData = {
           userId: user!.id,
           role: user!.role,
-          companyId: user!.companyId,
         };
 
         const jwtAccessToken = generateAccessToken(tokenData);

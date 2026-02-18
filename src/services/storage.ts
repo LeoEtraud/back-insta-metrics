@@ -6,11 +6,18 @@ import {
 export interface IStorage {
   // User & Auth
   getUserByEmail(email: string): Promise<User | null>;
+  getUserByInstagramUsername(username: string): Promise<User | null>;
   getUser(id: number): Promise<User | null>;
   createUser(user: InsertUser): Promise<User>;
   createOAuthUser(data: { email: string; name: string; provider: string; providerId: string }): Promise<User>;
   updateUserProvider(id: number, provider: string, providerId: string): Promise<void>;
   getUserByProviderId(provider: string, providerId: string): Promise<User | null>;
+  
+  // User Management (CRUD)
+  getAllUsers(): Promise<User[]>;
+  getUserById(id: number): Promise<User | null>;
+  updateUser(id: number, data: Partial<InsertUser>): Promise<User>;
+  deleteUser(id: number): Promise<void>;
   
   // Refresh Tokens
   storeRefreshToken(userId: number, token: string, expiresAt: Date): Promise<void>;
@@ -67,6 +74,14 @@ export class DatabaseStorage implements IStorage {
   // BUSCA USUÁRIO NO BANCO DE DADOS PELO EMAIL
   async getUserByEmail(email: string): Promise<User | null> {
     return await prisma.user.findUnique({ where: { email } });
+  }
+
+  // BUSCA USUÁRIO PELO INSTAGRAM USERNAME
+  async getUserByInstagramUsername(username: string): Promise<User | null> {
+    if (!username) return null;
+    return await prisma.user.findUnique({
+      where: { instagramUsername: username },
+    });
   }
 
   // SALVA TOKEN DE REDEFINIÇÃO DE SENHA NO BANCO DE DADOS ASSOCIADO AO EMAIL
@@ -144,7 +159,7 @@ export class DatabaseStorage implements IStorage {
         password: null, // Usuários OAuth não têm senha
         provider: data.provider,
         providerId: data.providerId,
-        role: USER_ROLES.ADMIN_COMPANY,
+        role: USER_ROLES.CLIENT,
       },
     });
   }
@@ -166,6 +181,37 @@ export class DatabaseStorage implements IStorage {
           providerId,
         },
       },
+    });
+  }
+
+  // LISTA TODOS OS USUÁRIOS
+  async getAllUsers(): Promise<User[]> {
+    return await prisma.user.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  }
+
+  // BUSCA USUÁRIO PELO ID
+  async getUserById(id: number): Promise<User | null> {
+    return await prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
+  // ATUALIZA DADOS DO USUÁRIO
+  async updateUser(id: number, data: Partial<InsertUser>): Promise<User> {
+    return await prisma.user.update({
+      where: { id },
+      data,
+    });
+  }
+
+  // DELETA USUÁRIO DO BANCO DE DADOS
+  async deleteUser(id: number): Promise<void> {
+    await prisma.user.delete({
+      where: { id },
     });
   }
 
