@@ -160,7 +160,7 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
     return res.status(400).json({ message: "ID de usuário inválido" });
   }
 
-  const data = updateUserSchema.parse(req.body);
+  let data = updateUserSchema.parse(req.body);
 
   // Verifica se usuário existe
   const targetUser = await storage.getUserById(userId);
@@ -207,12 +207,24 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
     }
   }
 
+  // Cliente editando próprio perfil: ignora instagramUsername do body (nunca sobrescreve)
+  const isClientEditingSelf = user.role === USER_ROLES.CLIENT && targetUser.id === user.userId;
+  if (isClientEditingSelf) {
+    delete (data as Record<string, unknown>).instagramUsername;
+  }
+
   // Prepara dados para atualização
-  const updateData: any = {};
+  const updateData: Record<string, unknown> = {};
   if (data.email) updateData.email = data.email;
   if (data.name) updateData.name = data.name;
-  // Usa o valor normalizado do instagramUsername
-  if (normalizedUsername !== undefined) updateData.instagramUsername = normalizedUsername;
+  // instagramUsername: apenas admin pode alterar quando envia explicitamente
+  if (user.role === USER_ROLES.ADMIN && data.instagramUsername !== undefined) {
+    updateData.instagramUsername = normalizedUsername;
+  }
+  // Para cliente: NUNCA incluir instagramUsername em updateData (Prisma preserva valor existente)
+  if (isClientEditingSelf) {
+    delete updateData.instagramUsername;
+  }
   if (data.role && user.role === USER_ROLES.ADMIN) updateData.role = data.role;
   
   // Hash da senha se fornecida
