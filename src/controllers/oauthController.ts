@@ -125,7 +125,7 @@ export const metaAuthStart = async (req: AuthRequest, res: Response) => {
   });
 
   const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${encodeURIComponent(META_SCOPES)}&state=${state}`;
-  res.redirect(302, authUrl);
+  res.status(200).json({ url: authUrl });
 };
 
 // CALLBACK OAUTH META - RECEBE CODE, TROCA POR TOKEN, SALVA NA COMPANY
