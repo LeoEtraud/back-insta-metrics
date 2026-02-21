@@ -140,7 +140,7 @@ export const metaCallback = async (req: Request, res: Response) => {
 
     if (pages.length === 0) {
       return res.redirect(
-        `${frontendUrl}/settings?instagram_error=${encodeURIComponent("Nenhuma página com Instagram vinculado encontrada. Vincule o Instagram à sua Página do Facebook.")}`
+        `${frontendUrl}/settings?instagram_error=no_linked_page`
       );
     }
 
