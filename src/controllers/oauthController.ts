@@ -1,25 +1,11 @@
 import type { Request, Response } from "express";
-import crypto from "crypto";
 import passport from "passport";
 import "../config/passport";
 import { storage } from "../services/storage";
 import { USER_ROLES } from "../types/schema";
 import { exchangeCodeForToken, getLongLivedToken, getPagesWithInstagram } from "../services/metaService";
+import { signOAuthState, verifyOAuthState } from "../utils/jwt";
 import type { AuthRequest } from "../middlewares/auth";
-
-// Cache em memória para state OAuth (anti-CSRF). Em produção, usar Redis.
-const metaOAuthStateCache = new Map<
-  string,
-  { companyId: number; userId: number; createdAt: number }
->();
-const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutos
-
-function pruneExpiredStates() {
-  const now = Date.now();
-  for (const [k, v] of metaOAuthStateCache.entries()) {
-    if (now - v.createdAt > STATE_TTL_MS) metaOAuthStateCache.delete(k);
-  }
-}
 
 // INICIA PROCESSO DE AUTENTICAÇÃO COM GOOGLE OAUTH
 export const googleAuth = passport.authenticate("google", {
@@ -116,13 +102,8 @@ export const metaAuthStart = async (req: AuthRequest, res: Response) => {
     });
   }
 
-  pruneExpiredStates();
-  const state = crypto.randomBytes(24).toString("hex");
-  metaOAuthStateCache.set(state, {
-    companyId: resolvedCompanyId,
-    userId: user.userId,
-    createdAt: Date.now(),
-  });
+  // State como JWT assinado (não usa memória — funciona quando o servidor reinicia, ex.: Render)
+  const state = signOAuthState({ companyId: resolvedCompanyId, userId: user.userId });
 
   const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${encodeURIComponent(META_SCOPES)}&state=${state}`;
   res.status(200).json({ url: authUrl });
@@ -144,17 +125,11 @@ export const metaCallback = async (req: Request, res: Response) => {
     return res.redirect(`${frontendUrl}/settings?instagram_error=missing_code_or_state`);
   }
 
-  const cached = metaOAuthStateCache.get(state);
-  metaOAuthStateCache.delete(state);
-  pruneExpiredStates();
-
-  if (!cached) {
-    return res.redirect(`${frontendUrl}/settings?instagram_error=state_expired`);
-  }
-
-  const { companyId } = cached;
-  const now = Date.now();
-  if (now - cached.createdAt > STATE_TTL_MS) {
+  let companyId: number;
+  try {
+    const payload = verifyOAuthState(state);
+    companyId = payload.companyId;
+  } catch {
     return res.redirect(`${frontendUrl}/settings?instagram_error=state_expired`);
   }
 

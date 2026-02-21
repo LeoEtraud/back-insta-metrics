@@ -28,3 +28,19 @@ export function verifyRefreshToken(token: string): { userId: number } {
   return jwt.verify(token, REFRESH_TOKEN_SECRET) as { userId: number };
 }
 
+// STATE OAUTH META (anti-CSRF) — JWT assinado, não usa memória (funciona com Render/servidor que reinicia)
+const OAUTH_STATE_SECRET = process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET || "dev-access-secret-key-123";
+
+export interface OAuthStatePayload {
+  companyId: number;
+  userId: number;
+}
+
+export function signOAuthState(payload: OAuthStatePayload): string {
+  return jwt.sign(payload, OAUTH_STATE_SECRET, { expiresIn: "10m" });
+}
+
+export function verifyOAuthState(token: string): OAuthStatePayload {
+  return jwt.verify(token, OAUTH_STATE_SECRET) as OAuthStatePayload;
+}
+
