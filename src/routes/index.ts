@@ -7,6 +7,7 @@ import * as oauthController from "../controllers/oauthController";
 import * as dashboardController from "../controllers/dashboardController";
 import * as instagramController from "../controllers/instagramController";
 import * as userController from "../controllers/userController";
+import * as companyController from "../controllers/companyController";
 
 // REGISTRA TODAS AS ROTAS DA APLICAÇÃO NO EXPRESS - AUTENTICAÇÃO, OAUTH, DASHBOARD E INSTAGRAM
 export async function registerRoutes(
@@ -26,6 +27,10 @@ export async function registerRoutes(
   app.get("/api/auth/google/callback", oauthController.googleCallback);
   app.get("/api/auth/microsoft", oauthController.microsoftAuth);
   app.get("/api/auth/microsoft/callback", oauthController.microsoftCallback);
+
+  // Meta (Facebook/Instagram) OAuth Routes
+  app.get("/api/auth/meta/start", authenticateToken, oauthController.metaAuthStart as any);
+  app.get("/api/auth/meta/callback", oauthController.metaCallback);
   
   // Auth Routes (Protected)
   app.get(api.auth.me.path, authenticateToken, authController.me);
@@ -37,6 +42,11 @@ export async function registerRoutes(
   // Instagram Routes (Protected)
   app.get(api.instagram.posts.path, authenticateToken, instagramController.getPosts);
   app.post(api.instagram.sync.path, authenticateToken, instagramController.syncPosts);
+  app.post("/api/instagram/disconnect", authenticateToken, instagramController.disconnectInstagram);
+
+  // Company Routes (Protected - Admin)
+  app.get("/api/companies", authenticateToken, companyController.listCompanies);
+  app.post("/api/companies", authenticateToken, requireAdmin, companyController.createCompany);
 
   // User Management Routes (Protected)
   app.get(api.users.list.path, authenticateToken, userController.listUsers);

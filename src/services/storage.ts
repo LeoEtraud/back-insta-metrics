@@ -26,13 +26,25 @@ export interface IStorage {
 
   // Company
   getCompany(id: number): Promise<Company | null>;
+  getAllCompanies(): Promise<Company[]>;
   createCompany(name: string): Promise<Company>;
+  updateCompanyInstagram(
+    companyId: number,
+    data: {
+      instagramAccessToken: string | null;
+      instagramBusinessAccountId: string | null;
+      instagramUsername: string | null;
+      instagramTokenExpiresAt: Date | null;
+    }
+  ): Promise<void>;
   
   // Instagram Data
   getPosts(companyId: number): Promise<InstagramPost[]>;
   createPost(post: InsertPost): Promise<InstagramPost>;
+  upsertPost(companyId: number, post: { instagramId: string; mediaType: string; mediaUrl?: string; permalink?: string; caption?: string; timestamp: Date; metrics?: Record<string, number> }): Promise<InstagramPost>;
   getDailyMetrics(companyId: number): Promise<DailyMetric[]>;
   createDailyMetric(metric: InsertDailyMetric): Promise<DailyMetric>;
+  upsertDailyMetric(companyId: number, date: Date, data: { followersCount?: number; reach?: number; impressions?: number; profileViews?: number }): Promise<DailyMetric>;
   
   // Dashboard Aggregates
   getDashboardSummary(companyId: number): Promise<{
@@ -251,9 +263,35 @@ export class DatabaseStorage implements IStorage {
     return await prisma.company.findUnique({ where: { id } });
   }
 
+  // LISTA TODAS AS EMPRESAS (PARA ADMIN)
+  async getAllCompanies(): Promise<Company[]> {
+    return await prisma.company.findMany({ orderBy: { name: "asc" } });
+  }
+
   // CRIA NOVA EMPRESA NO BANCO DE DADOS
   async createCompany(name: string): Promise<Company> {
     return await prisma.company.create({ data: { name } });
+  }
+
+  // ATUALIZA DADOS DO INSTAGRAM NA EMPRESA (APÓS OAUTH OU DESCONEXÃO)
+  async updateCompanyInstagram(
+    companyId: number,
+    data: {
+      instagramAccessToken: string | null;
+      instagramBusinessAccountId: string | null;
+      instagramUsername: string | null;
+      instagramTokenExpiresAt: Date | null;
+    }
+  ): Promise<void> {
+    await prisma.company.update({
+      where: { id: companyId },
+      data: {
+        instagramAccessToken: data.instagramAccessToken,
+        instagramBusinessAccountId: data.instagramBusinessAccountId,
+        instagramUsername: data.instagramUsername,
+        instagramTokenExpiresAt: data.instagramTokenExpiresAt,
+      },
+    });
   }
 
   // BUSCA TODOS OS POSTS DO INSTAGRAM DA EMPRESA ORDENADOS POR DATA (MAIS RECENTES PRIMEIRO)
@@ -269,6 +307,44 @@ export class DatabaseStorage implements IStorage {
     return await prisma.instagramPost.create({ data: post });
   }
 
+  // UPSERT POST POR INSTAGRAM ID (CRIA OU ATUALIZA)
+  async upsertPost(
+    companyId: number,
+    post: {
+      instagramId: string;
+      mediaType: string;
+      mediaUrl?: string;
+      permalink?: string;
+      caption?: string;
+      timestamp: Date;
+      metrics?: Record<string, number>;
+    }
+  ): Promise<InstagramPost> {
+    const metrics = post.metrics ?? { likes: 0, comments: 0 };
+    return await prisma.instagramPost.upsert({
+      where: { instagramId: post.instagramId },
+      create: {
+        companyId,
+        instagramId: post.instagramId,
+        mediaType: post.mediaType,
+        mediaUrl: post.mediaUrl,
+        permalink: post.permalink,
+        caption: post.caption,
+        timestamp: post.timestamp,
+        metrics,
+      },
+      update: {
+        mediaType: post.mediaType,
+        mediaUrl: post.mediaUrl,
+        permalink: post.permalink,
+        caption: post.caption,
+        timestamp: post.timestamp,
+        metrics,
+        lastUpdated: new Date(),
+      },
+    });
+  }
+
   // BUSCA MÉTRICAS DIÁRIAS DA EMPRESA ORDENADAS POR DATA (MAIS ANTIGAS PRIMEIRO)
   async getDailyMetrics(companyId: number): Promise<DailyMetric[]> {
     return await prisma.dailyMetric.findMany({
@@ -280,6 +356,48 @@ export class DatabaseStorage implements IStorage {
   // CRIA NOVA MÉTRICA DIÁRIA NO BANCO DE DADOS
   async createDailyMetric(metric: InsertDailyMetric): Promise<DailyMetric> {
     return await prisma.dailyMetric.create({ data: metric });
+  }
+
+  // UPSERT MÉTRICA DIÁRIA POR COMPANY E DATA
+  async upsertDailyMetric(
+    companyId: number,
+    date: Date,
+    data: { followersCount?: number; reach?: number; impressions?: number; profileViews?: number }
+  ): Promise<DailyMetric> {
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    const existing = await prisma.dailyMetric.findFirst({
+      where: {
+        companyId,
+        date: { gte: dayStart, lt: dayEnd },
+      },
+    });
+
+    if (existing) {
+      return await prisma.dailyMetric.update({
+        where: { id: existing.id },
+        data: {
+          ...(data.followersCount !== undefined && { followersCount: data.followersCount }),
+          ...(data.reach !== undefined && { reach: data.reach }),
+          ...(data.impressions !== undefined && { impressions: data.impressions }),
+          ...(data.profileViews !== undefined && { profileViews: data.profileViews }),
+        },
+      });
+    }
+
+    return await prisma.dailyMetric.create({
+      data: {
+        companyId,
+        date: dayStart,
+        followersCount: data.followersCount ?? 0,
+        reach: data.reach ?? 0,
+        impressions: data.impressions ?? 0,
+        profileViews: data.profileViews ?? 0,
+      },
+    });
   }
 
   // CALCULA E RETORNA RESUMO DAS MÉTRICAS DO DASHBOARD (SEGUIDORES, ALCANCE, POSTS, TAXA DE ENGAJAMENTO)

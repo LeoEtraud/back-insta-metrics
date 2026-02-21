@@ -11,14 +11,17 @@ datasource db {
 }
 
 model Company {
-  id                        Int       @id @default(autoincrement())
-  name                      String
-  instagramBusinessAccountId String?  @map("instagram_business_account_id")
-  instagramAccessToken      String?   @map("instagram_access_token")
-  createdAt                 DateTime  @default(now()) @map("created_at")
+  id                           Int       @id @default(autoincrement())
+  name                         String
+  instagramBusinessAccountId   String?   @map("instagram_business_account_id")
+  instagramAccessToken         String?   @map("instagram_access_token")
+  instagramTokenExpiresAt      DateTime? @map("instagram_token_expires_at")
+  instagramUsername            String?   @map("instagram_username")
+  createdAt                    DateTime  @default(now()) @map("created_at")
   
-  instagramPosts            InstagramPost[]
-  dailyMetrics              DailyMetric[]
+  users                        User[]
+  instagramPosts               InstagramPost[]
+  dailyMetrics                 DailyMetric[]
   
   @@map("companies")
 }
@@ -29,6 +32,7 @@ model User {
   password          String?   // Opcional para usuários OAuth
   name              String
   role              String    @default("cliente") // admin ou cliente
+  companyId         Int?      @map("company_id")
   instagramUsername String?   @unique @map("instagram_username") // Nome de usuário do Instagram (@username) - único
   provider          String?   @default("local") // local, google, microsoft
   providerId        String?   @map("provider_id") // ID do usuário no provedor OAuth
@@ -38,6 +42,7 @@ model User {
   resetCodeExpires  DateTime? @map("reset_code_expires")
   createdAt         DateTime  @default(now()) @map("created_at")
   
+  company           Company?  @relation(fields: [companyId], references: [id])
   refreshTokens     RefreshToken[]
   
   @@unique([provider, providerId])

@@ -45,6 +45,7 @@ const createUserSchema = z.object({
   role: z.enum([USER_ROLES.ADMIN, USER_ROLES.CLIENT], {
     errorMap: () => ({ message: "Role deve ser 'admin' ou 'cliente'" }),
   }),
+  companyId: z.number().int().positive().optional().nullable(),
 });
 
 const updateUserSchema = z.object({
@@ -55,6 +56,7 @@ const updateUserSchema = z.object({
   role: z.enum([USER_ROLES.ADMIN, USER_ROLES.CLIENT], {
     errorMap: () => ({ message: "Role deve ser 'admin' ou 'cliente'" }),
   }).optional(),
+  companyId: z.number().int().positive().optional().nullable(),
 });
 
 // LISTA USUÁRIOS COM FILTRO DE PERMISSÃO (ADMIN: TODOS, CLIENTE: APENAS DA SUA EMPRESA)
@@ -133,15 +135,25 @@ export const createUser = asyncHandler(async (req: AuthRequest, res: Response) =
   // Hash da senha
   const hashedPassword = await bcrypt.hash(data.password, 10);
 
+  // Valida companyId se fornecido (deve existir)
+  if (data.companyId) {
+    const company = await storage.getCompany(data.companyId);
+    if (!company) {
+      return res.status(400).json({ message: "Empresa não encontrada" });
+    }
+  }
+
   // Cria usuário
-  const newUser = await storage.createUser({
+  const createData = {
     email: data.email,
     password: hashedPassword,
     name: data.name,
     instagramUsername: normalizedUsername,
     role: data.role,
     provider: "local",
-  });
+    ...(data.companyId != null && { company: { connect: { id: data.companyId } } }),
+  };
+  const newUser = await storage.createUser(createData);
 
   // Busca usuário criado com relacionamentos
   const userWithRelations = await storage.getUserById(newUser.id);
@@ -226,7 +238,16 @@ export const updateUser = asyncHandler(async (req: AuthRequest, res: Response) =
     delete updateData.instagramUsername;
   }
   if (data.role && user.role === USER_ROLES.ADMIN) updateData.role = data.role;
-  
+  if (data.companyId !== undefined && user.role === USER_ROLES.ADMIN) {
+    if (data.companyId !== null) {
+      const company = await storage.getCompany(data.companyId);
+      if (!company) {
+        return res.status(400).json({ message: "Empresa não encontrada" });
+      }
+    }
+    updateData.companyId = data.companyId;
+  }
+
   // Hash da senha se fornecida
   if (data.password) {
     updateData.password = await bcrypt.hash(data.password, 10);

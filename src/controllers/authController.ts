@@ -193,19 +193,33 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   }
 });
 
-// RETORNA OS DADOS DO USUÁRIO AUTENTICADO ATUAL
+// RETORNA OS DADOS DO USUÁRIO AUTENTICADO ATUAL (INCLUI COMPANY QUANDO VINCULADO)
 export const me = asyncHandler(async (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const userId = authReq.user?.userId;
   if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
-  
+
   const user = await storage.getUser(userId);
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
-  
-  res.json(user);
+
+  let company = null;
+  if (user.companyId) {
+    company = await storage.getCompany(user.companyId);
+    if (company) {
+      company = {
+        id: company.id,
+        name: company.name,
+        instagramBusinessAccountId: company.instagramBusinessAccountId,
+        instagramUsername: company.instagramUsername,
+        instagramTokenExpiresAt: company.instagramTokenExpiresAt,
+      };
+    }
+  }
+
+  res.json({ ...user, company });
 });
 
