@@ -87,8 +87,10 @@ const sendViaResendAPI = async (email: string, code: string): Promise<void> => {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "Erro desconhecido" })) as { message?: string };
-    throw new Error(`Resend API error: ${error.message || response.statusText}`);
+    const errorBody = await response.json().catch(() => ({})) as { message?: string; name?: string; statusCode?: number };
+    const errorMsg = errorBody.message || errorBody.name || response.statusText;
+    console.error(`❌ [RESEND API] Falha no envio (HTTP ${response.status}):`, JSON.stringify(errorBody));
+    throw new Error(`Resend API error: ${errorMsg}`);
   }
 
   const data = await response.json() as { id: string };
@@ -179,10 +181,10 @@ const createTransporter = () => {
     // Força IPv4 para evitar problemas de conectividade no Render
     // O erro ENETUNREACH geralmente ocorre com IPv6
     family: 4, // Força uso de IPv4 ao invés de IPv6
-    // Timeouts mais agressivos para evitar travamentos
-    connectionTimeout: 10000, // 10 segundos para conectar
-    greetingTimeout: 10000, // 10 segundos para greeting
-    socketTimeout: 10000, // 10 segundos para socket
+    // Timeouts maiores para SMTP em cloud (Outlook/Gmail podem demorar do Render)
+    connectionTimeout: 25000, // 25 segundos para conectar
+    greetingTimeout: 25000,   // 25 segundos para greeting
+    socketTimeout: 25000,     // 25 segundos para socket
     // Pool de conexões
     pool: false, // Desabilita pool para evitar problemas de conexão
   };
@@ -359,13 +361,13 @@ export const sendPasswordResetCode = async (
 
   try {
     // Envia email diretamente sem verificar conexão primeiro (mais rápido)
-    // A verificação de conexão pode demorar muito em produção
-    // Adiciona timeout de 15 segundos para evitar travamentos
+    // Em cloud (ex.: Render), SMTP para Outlook/Gmail pode demorar; timeout generoso
     const sendPromise = transporter.sendMail(mailOptions);
-    const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error("Timeout: envio de email excedeu 15 segundos")), 15000)
+    const timeoutMs = 35000; // 35 segundos (conexão + envio)
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout: envio de email excedeu ${timeoutMs / 1000} segundos`)), timeoutMs)
     );
-    
+
     const info = await Promise.race([sendPromise, timeoutPromise]);
     
     console.log(`✅ [EMAIL] Código de recuperação enviado para ${email}`);
