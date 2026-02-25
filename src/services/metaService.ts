@@ -88,35 +88,47 @@ export async function getLongLivedToken(shortLivedToken: string): Promise<TokenR
 
 /**
  * Busca páginas do Facebook do usuário com contas Instagram vinculadas.
+ * Segue paginação (paging.next) para não perder páginas.
  */
 export async function getPagesWithInstagram(accessToken: string): Promise<PageWithInstagram[]> {
-  const url = `${BASE_URL}/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${encodeURIComponent(accessToken)}`;
+  const results: PageWithInstagram[] = [];
+  let nextUrl: string | null = `${BASE_URL}/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${encodeURIComponent(accessToken)}`;
 
-  const res = await fetch(url);
-  const data = (await res.json()) as {
-    error?: { code?: number; message?: string };
-    data?: Array<{ id: string; instagram_business_account?: { id: string; username: string } }>;
-  };
+  while (nextUrl) {
+    const res = await fetch(nextUrl);
+    const data = (await res.json()) as {
+      error?: { code?: number; message?: string };
+      data?: Array<{ id: string; name?: string; instagram_business_account?: { id: string; username: string } }>;
+      paging?: { next?: string };
+    };
 
-  if (data.error) {
-    if (data.error.code === 190) {
-      throw new Error("Token expirado ou inválido. Reconecte o Instagram.");
+    if (data.error) {
+      if (data.error.code === 190) {
+        throw new Error("Token expirado ou inválido. Reconecte o Instagram.");
+      }
+      throw new Error(data.error.message || "Falha ao buscar páginas");
     }
-    throw new Error(data.error.message || "Falha ao buscar páginas");
+
+    const pages = data.data || [];
+    for (const page of pages) {
+      const ig = page.instagram_business_account;
+      if (ig?.id && ig?.username) {
+        results.push({
+          pageId: page.id,
+          igUserId: ig.id,
+          username: ig.username,
+        });
+      }
+    }
+
+    nextUrl = data.paging?.next ?? null;
   }
 
-  const results: PageWithInstagram[] = [];
-  const pages = data.data || [];
-
-  for (const page of pages) {
-    const ig = page.instagram_business_account;
-    if (ig?.id && ig?.username) {
-      results.push({
-        pageId: page.id,
-        igUserId: ig.id,
-        username: ig.username,
-      });
-    }
+  if (results.length === 0) {
+    console.warn(
+      "[META] getPagesWithInstagram: nenhuma página com Instagram encontrada. " +
+        "Verifique se a conta que autorizou é admin da Página e se o Instagram está vinculado em Configurações da Página."
+    );
   }
 
   return results;

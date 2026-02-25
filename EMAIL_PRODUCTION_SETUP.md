@@ -33,51 +33,103 @@ O Gmail SMTP pode ter problemas de conectividade no Render devido a bloqueios de
 
 ---
 
-## 🆓 Resend com domínio gratuito (eu.org)
+## 🆓 Resend com domínio gratuito (ou barato)
 
-Assim você mantém o Resend (grátis até 3.000 e-mails/mês) e usa um **subdomínio gratuito** para poder enviar para qualquer destinatário, sem pagar domínio.
+Assim você mantém o Resend (grátis até 3.000 e-mails/mês) e usa um **domínio** para poder enviar para qualquer destinatário.
 
-### Passo 1: Registrar um subdomínio gratuito no eu.org
+### Opção A: FreeDNS (afraid.org) – subdomínio gratuito e interface que funciona
 
-1. Acesse **https://nic.eu.org** e clique em **Sign-in or sign-up** (ou vá direto em **https://nic.eu.org/arf/**).
-2. Crie uma conta (sign-up) e faça login.
-3. Solicite um **subdomínio**. Exemplos de nome: `instametrics`, `meuapp`, `leonardo-projetos`. Você receberá um domínio como **`seudominio.eu.org`** (ex.: `instametrics.eu.org`).
-4. A aprovação pode levar de algumas horas a alguns dias (eu.org é mantido por voluntários).
-5. No painel do eu.org, anote onde você gerencia o **DNS** do seu subdomínio (registros TXT, CNAME, etc.). Você vai precisar adicionar os registros que o Resend mostrar.
+O [FreeDNS](https://freedns.afraid.org/) oferece subdomínios gratuitos com **controle total de DNS** (TXT, CNAME, MX), necessário para o Resend. A interface é mais moderna que a do eu.org.
+
+1. Acesse **https://freedns.afraid.org/** e crie uma conta (Sign up).
+2. Faça login e vá em **Subdomains** (ou **Domains**). Escolha um dos domínios compartilhados disponíveis (ex.: `moooo.com`, `ddns.net`) e registre um subdomínio (ex.: `instametrics.moooo.com`).
+3. Na zona DNS do seu subdomínio, você poderá adicionar registros **TXT** e **CNAME**. Use esses campos para colar os valores que o Resend pedir (Passo 2 abaixo).
+4. O domínio final será algo como **`instametrics.moooo.com`**. Use no Resend e em `RESEND_FROM_EMAIL=noreply@instametrics.moooo.com`.
+
+### Opção B: eu.org (gratuito, site em HTML puro)
+
+O [eu.org](https://nic.eu.org/) é um serviço antigo (só HTML, sem JavaScript). Use o guia detalhado abaixo.
+
+### Opção C: Domínio pago barato (primeiro ano a partir de ~US$ 1)
+
+Registradores como **Namecheap**, **Porkbun** ou **Cloudflare** vendem domínios (ex.: `.com`, `.xyz`) a preços baixos no primeiro ano. Você adiciona o domínio no Resend e configura os DNS no painel do registrador (TXT, CNAME). É a opção mais estável se você quiser um domínio “sério” (ex.: `instametrics.com`).
+
+---
+
+### Guia passo a passo: eu.org
+
+Siga estes passos no [eu.org](https://nic.eu.org/) (site em HTML puro – use os links indicados).
+
+1. **Criar conta**
+   - Acesse **https://nic.eu.org/arf/**.
+   - Clique em **Register** (ou em [contact/create](https://nic.eu.org/arf/en/contact/create/)).
+   - Preencha o formulário (handle, e-mail, etc.) e envie. Você receberá um **handle** (identificador) e definirá uma senha.
+   - Se já tiver conta, faça login com **Your handle** e **Your password** na mesma página.
+
+2. **Escolher o nome do subdomínio**
+   - No eu.org você não registra “eu.org” sozinho; escolhe um **subdomínio** dentro de um domínio aberto.
+   - Lista de domínios abertos: [opendomains.html](https://nic.eu.org/opendomains.html). Exemplos: **NET.eu.org**, **US.eu.org**.
+   - Exemplo: se escolher **NET.eu.org**, seu domínio pode ser **instametrics.net.eu.org** (subdomínio `instametrics` dentro de `net.eu.org`).
+   - Anote o nome completo que você quer (ex.: `instametrics.net.eu.org`).
+
+3. **Obter nameservers (DNS)**
+   - O eu.org exige que você informe **nameservers** que já estejam (ou que você vá) configurar para esse nome.
+   - Opção sugerida pelo eu.org: [GraniteCanyon](http://soa.granitecanyon.com/) (DNS gratuito). Crie lá uma zona para o domínio escolhido (ex.: `instametrics.net.eu.org`) e anote os nameservers (ex.: `ns1.granitecanyon.com`).
+   - Outra opção: **Cloudflare** – adicione o site com o nome exato (ex.: `instametrics.net.eu.org`), use os nameservers que o Cloudflare mostrar.
+
+4. **Pedir o domínio no eu.org**
+   - Logado em **https://nic.eu.org/arf/**, procure o formulário para **request domain** / **new domain** (menu “Domain” ou “Registration”).
+   - Informe o **nome completo** (ex.: `instametrics.net.eu.org`) e os **nameservers** (GraniteCanyon ou Cloudflare).
+   - Envie o pedido. A aprovação é feita por voluntários e pode levar **alguns dias**. Você será avisado por e-mail.
+
+5. **Depois da aprovação**
+   - No painel de DNS (GraniteCanyon, Cloudflare, etc.), adicione os **registros que o Resend pedir** (Passos 2 e 3 desta seção): TXT (verificação), TXT (SPF), CNAME (DKIM).
+   - No **Resend**: [resend.com/domains](https://resend.com/domains) → **Add Domain** → informe seu domínio (ex.: `instametrics.net.eu.org`) → **Verify**.
+   - No **Render**: `RESEND_FROM_EMAIL=noreply@instametrics.net.eu.org` (e `RESEND_API_KEY`), depois **redeploy**.
+
+Se o site do eu.org não abrir ou o formulário não aparecer, recarregue ou tente outro navegador; o site é só HTML e às vezes demora.
+
+---
+
+### Passo 1 (resumo): ter um domínio
+
+Use **Opção A (FreeDNS)**, **B (eu.org)** ou **C (pago)**. Anote o domínio (ex.: `seudominio.moooo.com` ou `seudominio.net.eu.org`).
 
 ### Passo 2: Adicionar o domínio no Resend
 
 1. No **Resend**: [resend.com/domains](https://resend.com/domains) → **Add Domain**.
-2. Informe o domínio que você obteve no eu.org (ex.: `instametrics.eu.org`) e confirme.
+2. Informe o domínio que você obteve (ex.: `instametrics.moooo.com` ou `instametrics.eu.org`) e confirme.
 3. O Resend vai mostrar uma lista de **registros DNS** para você criar. Em geral são:
    - **TXT** (para verificação) – nome algo como `_resend`, valor algo como `resend-verification=xxxxx`
    - **TXT** (SPF) – nome `@` ou o domínio raiz, valor `v=spf1 include:_spf.resend.com ~all`
    - **CNAME** (DKIM) – nome algo como `resend._domainkey`, valor apontando para `resend._domainkey.resend.com`
 4. **Copie exatamente** os nomes e valores que o Resend mostrar (eles podem variar por conta).
 
-### Passo 3: Configurar os registros DNS no eu.org
+### Passo 3: Configurar os registros DNS no seu provedor
 
-1. No painel do **eu.org** (área de DNS do seu subdomínio), adicione **cada** registro que o Resend pediu:
-   - Para **TXT**: crie um registro TXT com o nome e o valor indicados pelo Resend. (Se o eu.org pedir só o “subdomínio”, use o que o Resend mostrar sem o sufixo `.seudominio.eu.org`.)
-   - Para **CNAME**: crie um CNAME com o nome e o destino que o Resend indicar.
-2. Salve e aguarde a **propagação DNS** (de alguns minutos a algumas horas).
-3. No Resend, use o botão **Verify** (ou “Verificar”) no domínio. Quando todos os registros forem encontrados, o domínio ficará **Verified**.
+1. No painel de **DNS** do seu domínio (FreeDNS, eu.org ou registrador pago), adicione **cada** registro que o Resend pediu:
+   - **TXT** (verificação): nome como `_resend`, valor como `resend-verification=xxxxx`.
+   - **TXT** (SPF): nome `@` ou raiz do domínio, valor `v=spf1 include:_spf.resend.com ~all`.
+   - **CNAME** (DKIM): nome como `resend._domainkey`, destino como `resend._domainkey.resend.com`.
+2. (No FreeDNS, valores TXT devem ir entre aspas.)
+3. Salve e aguarde a **propagação DNS** (minutos a algumas horas).
+4. No Resend, clique em **Verify**. Quando todos os registros forem encontrados, o domínio ficará **Verified**.
 
 ### Passo 4: Usar o e-mail do domínio no seu app
 
 1. No **Render** (ou onde estiver o backend), configure:
    ```
    RESEND_API_KEY=re_sua_chave_aqui
-   RESEND_FROM_EMAIL=noreply@seudominio.eu.org
+   RESEND_FROM_EMAIL=noreply@seudominio
    ```
-   Troque `seudominio.eu.org` pelo domínio que você registrou e verificou (ex.: `noreply@instametrics.eu.org`).
+   Troque `seudominio` pelo domínio que você verificou (ex.: `noreply@instametrics.moooo.com` ou `noreply@instametrics.eu.org`).
 2. Faça **redeploy** do serviço.
 3. A partir daí, a recuperação de senha poderá ser enviada para **qualquer e-mail**, não só o da sua conta Resend.
 
 ### Observações
 
-- **eu.org** é gratuito e permite que você gerencie DNS (TXT, CNAME, etc.), necessário para o Resend.
-- Se o eu.org demorar para aprovar o subdomínio, você pode procurar outras opções de subdomínio gratuito com DNS (por exemplo, alguns serviços “free DNS” ou “dynamic DNS” que permitem TXT/CNAME).
+- **FreeDNS** ([freedns.afraid.org](https://freedns.afraid.org/)): gratuito, suporta TXT e CNAME, interface utilizável.
+- **eu.org** ([nic.eu.org](https://nic.eu.org/)): gratuito, mas o site é só HTML, sem JavaScript, e pode parecer quebrado; se não funcionar para você, use FreeDNS ou um domínio pago.
 - **Só para teste** (sem domínio): com `onboarding@resend.dev`, o Resend aceita envio **apenas** para o e-mail da sua conta Resend. Qualquer outro destinatário retorna **403**.
 
 ---
@@ -117,6 +169,10 @@ Substitua:
 - **Conta Microsoft 365 / Exchange corporativa**: em alguns casos o administrador precisa permitir SMTP ou usar **smtp.office365.com** e porta **587**; confirme com a documentação da sua organização.
 - Para o backend usar **Outlook em vez do Resend**, não defina `RESEND_API_KEY` no Environment (ou remova essa variável) e faça **redeploy**.
 - Se aparecer erro de autenticação (EAUTH), confira se a verificação em duas etapas está ativa e se está usando a **senha de app**, não a senha normal da conta.
+
+### ⚠️ Timeout no Render (Outlook SMTP)
+
+Em hospedagens como o **Render**, a conexão SMTP com o Outlook pode **não completar a tempo** (timeout de 35+ segundos). Se isso acontecer, a opção estável é usar **Resend com domínio verificado** (veja a seção “Resend com domínio gratuito (eu.org)”). Resend usa API HTTP e não sofre com bloqueios de SMTP em cloud.
 
 ---
 

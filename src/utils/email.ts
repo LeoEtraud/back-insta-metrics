@@ -102,14 +102,15 @@ const sendViaResendAPI = async (email: string, code: string): Promise<void> => {
 const isResendConfigured = (): boolean => {
   const apiKey = process.env.RESEND_API_KEY;
   const isConfigured = !!(apiKey && apiKey.trim().length > 0);
-  
-  // Log de debug
+  const hasSmtp = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+
   if (isConfigured) {
     console.log(`✅ [RESEND] API Key detectada (prefixo: ${apiKey.substring(0, 3)}...)`);
-  } else {
-    console.log(`⚠️  [RESEND] API Key NÃO detectada. Verifique se RESEND_API_KEY está configurada no Render`);
+  } else if (!hasSmtp) {
+    console.log(`⚠️  [RESEND] API Key NÃO detectada. Configure RESEND_API_KEY ou EMAIL_* para envio.`);
   }
-  
+  // Se hasSmtp: não loga aviso Resend (usuário escolheu SMTP de propósito)
+
   return isConfigured;
 };
 

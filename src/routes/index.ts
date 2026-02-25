@@ -31,6 +31,7 @@ export async function registerRoutes(
   // Meta (Facebook/Instagram) OAuth Routes
   app.get("/api/auth/meta/start", authenticateToken, oauthController.metaAuthStart as any);
   app.get("/api/auth/meta/callback", oauthController.metaCallback);
+  app.get("/api/auth/meta/check", authenticateToken, requireAdmin, oauthController.metaCheck as any);
   
   // Auth Routes (Protected)
   app.get(api.auth.me.path, authenticateToken, authController.me);

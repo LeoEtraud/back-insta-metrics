@@ -56,6 +56,19 @@ export const microsoftAuth = passport.authenticate("microsoft", {
 const META_SCOPES =
   "pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights";
 
+// DIAGNÓSTICO: RETORNA O QUE O BACKEND ESTÁ USANDO (SÓ ADMIN) - PARA CONFERIR COM O PAINEL META
+export const metaCheck = async (req: AuthRequest, res: Response) => {
+  const appId = process.env.META_APP_ID;
+  const callbackUrl = process.env.META_CALLBACK_URL;
+  const configured = !!(appId && callbackUrl);
+  res.json({
+    configured,
+    redirectUri: callbackUrl || null,
+    appIdSuffix: appId ? `...${appId.slice(-4)}` : null,
+    hint: "redirectUri deve ser EXATAMENTE igual em Meta for Developers → Login do Facebook → Configurações → URIs de redirecionamento",
+  });
+};
+
 // INICIA FLUXO OAUTH META - GERA STATE E REDIRECIONA PARA LOGIN FACEBOOK
 export const metaAuthStart = async (req: AuthRequest, res: Response) => {
   const user = req.user;
