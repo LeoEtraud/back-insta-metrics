@@ -22,11 +22,18 @@ export async function registerRoutes(
   app.post(api.auth.login.path, authController.login);
   app.post(api.auth.refresh.path, authController.refresh);
   
-  // OAuth Routes
-  app.get("/api/auth/google", oauthController.googleAuth);
-  app.get("/api/auth/google/callback", oauthController.googleCallback);
-  app.get("/api/auth/microsoft", oauthController.microsoftAuth);
-  app.get("/api/auth/microsoft/callback", oauthController.microsoftCallback);
+  // OAuth Routes (Google e Microsoft só são registrados se credenciais estiverem no env)
+  const hasGoogle = !!(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim());
+  const hasMicrosoft = !!(process.env.MICROSOFT_CLIENT_ID?.trim() && process.env.MICROSOFT_CLIENT_SECRET?.trim());
+
+  if (hasGoogle) {
+    app.get("/api/auth/google", oauthController.googleAuth);
+    app.get("/api/auth/google/callback", oauthController.googleCallback);
+  }
+  if (hasMicrosoft) {
+    app.get("/api/auth/microsoft", oauthController.microsoftAuth);
+    app.get("/api/auth/microsoft/callback", oauthController.microsoftCallback);
+  }
 
   // Meta (Facebook/Instagram) OAuth Routes
   app.get("/api/auth/meta/start", authenticateToken, oauthController.metaAuthStart as any);

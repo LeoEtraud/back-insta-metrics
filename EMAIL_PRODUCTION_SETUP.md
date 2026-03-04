@@ -2,9 +2,25 @@
 
 O Gmail SMTP pode ter problemas de conectividade no Render devido a bloqueios de rede ou problemas com IPv6. **Recomendamos usar Resend** para produção, que é mais confiável e rápido.
 
+## 🚀 Opção mais simples: SendGrid (Single Sender - sem domínio)
+
+Sem configurar domínio ou DNS:
+
+1. Crie conta em **https://sendgrid.com**
+2. **Settings** → **Sender Authentication** → **Single Sender Verification** → verifique um e-mail (Gmail, Outlook)
+3. **Settings** → **API Keys** → crie uma chave
+4. No Render:
+   ```
+   SENDGRID_API_KEY=SG.xxxx...
+   SENDGRID_FROM_EMAIL=seu-email-verificado@gmail.com
+   ```
+5. Redeploy. O backend prioriza SendGrid quando essas variáveis existem.
+
+---
+
 ## ⚠️ Recuperação de senha: e-mail não chega?
 
-1. **No Render (Environment)** confira: `RESEND_API_KEY` (começa com `re_`) e `RESEND_FROM_EMAIL`.
+1. **No Render (Environment)** confira: `SENDGRID_API_KEY` + `SENDGRID_FROM_EMAIL`, ou `RESEND_API_KEY` + `RESEND_FROM_EMAIL`.
 2. **Se usar `onboarding@resend.dev`**: o Resend só envia para o **e-mail da sua conta Resend**. Para qualquer outro destinatário você receberá erro 403 e o e-mail não será enviado. **Solução**: verifique um domínio em [resend.com/domains](https://resend.com/domains) e use `RESEND_FROM_EMAIL=noreply@seudominio.com`.
 3. **Logs**: ao solicitar recuperação, veja no log do Render se aparece `POST /api/auth/forgot-password`, `📧 Usando Resend API` e `✅ [RESEND API] Email enviado`. Se aparecer `❌ [RESEND API] Falha (HTTP 403)`, é o caso do item 2.
 

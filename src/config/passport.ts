@@ -15,12 +15,16 @@ passport.deserializeUser((user: any, done) => {
   done(null, user);
 });
 
-// CONFIGURA ESTRATÉGIA DE AUTENTICAÇÃO GOOGLE OAUTH - BUSCA/CRIA USUÁRIO E GERA TOKENS JWT
-passport.use(
-  new GoogleStrategy(
+// CONFIGURA ESTRATÉGIA DE AUTENTICAÇÃO GOOGLE OAUTH - SÓ REGISTRA SE CREDENCIAIS ESTIVEREM CONFIGURADAS
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+
+if (googleClientId && googleClientSecret) {
+  passport.use(
+    new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientID: googleClientId,
+      clientSecret: googleClientSecret,
       callbackURL: process.env.GOOGLE_CALLBACK_URL || "/api/auth/google/callback",
     },
     async (accessToken, refreshToken, profile, done) => {
@@ -100,24 +104,28 @@ passport.use(
       }
     }
   )
-);
+  );
+  console.log("✅ [PASSPORT] Google OAuth configurado");
+} else {
+  console.log("⚠️ [PASSPORT] Google OAuth não configurado (GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET ausentes)");
+}
 
-// CONFIGURA ESTRATÉGIA DE AUTENTICAÇÃO MICROSOFT OAUTH - BUSCA/CRIA USUÁRIO E GERA TOKENS JWT
-// ✅ USA MICROSOFT IDENTITY PLATFORM v2.0 E MICROSOFT GRAPH API (APIs MODERNAS E SUPORTADAS)
-// ❌ NÃO USA Azure AD Graph ou ADAL (descontinuadas desde 30/06/2020)
-passport.use(
-  "microsoft",
-  new OAuth2Strategy(
-    {
-      // Microsoft Identity Platform v2.0 endpoints (modernos e suportados)
-      authorizationURL: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-      tokenURL: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-      clientID: process.env.MICROSOFT_CLIENT_ID || "",
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET || "",
-      callbackURL: process.env.MICROSOFT_CALLBACK_URL || "/api/auth/microsoft/callback",
-      // User.Read é necessário para acessar https://graph.microsoft.com/v1.0/me
-      scope: "openid profile email https://graph.microsoft.com/User.Read",
-    },
+// CONFIGURA ESTRATÉGIA DE AUTENTICAÇÃO MICROSOFT OAUTH - SÓ REGISTRA SE CREDENCIAIS ESTIVEREM CONFIGURADAS
+const microsoftClientId = process.env.MICROSOFT_CLIENT_ID?.trim();
+const microsoftClientSecret = process.env.MICROSOFT_CLIENT_SECRET?.trim();
+
+if (microsoftClientId && microsoftClientSecret) {
+  passport.use(
+    "microsoft",
+    new OAuth2Strategy(
+      {
+        authorizationURL: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        tokenURL: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        clientID: microsoftClientId,
+        clientSecret: microsoftClientSecret,
+        callbackURL: process.env.MICROSOFT_CALLBACK_URL || "/api/auth/microsoft/callback",
+        scope: "openid profile email https://graph.microsoft.com/User.Read",
+      },
     async (accessToken: string, refreshToken: string, params: any, done: (error: any, user?: any) => void) => {
       try {
         console.log("🔵 [MICROSOFT OAUTH] Token recebido, buscando informações do usuário...");
@@ -244,7 +252,11 @@ passport.use(
       }
     }
   )
-);
+  );
+  console.log("✅ [PASSPORT] Microsoft OAuth configurado");
+} else {
+  console.log("⚠️ [PASSPORT] Microsoft OAuth não configurado (MICROSOFT_CLIENT_ID e MICROSOFT_CLIENT_SECRET ausentes)");
+}
 
 export default passport;
 

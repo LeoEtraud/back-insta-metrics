@@ -1,5 +1,131 @@
 import nodemailer from "nodemailer";
 
+// HTML E TEXTO COMUNS PARA O EMAIL DE RECUPERAÇÃO
+const getPasswordResetEmailContent = (code: string) => ({
+  html: `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fbbf24; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
+          .code-box { background: #f3f4f6; border: 2px dashed #fbbf24; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
+          .code { font-size: 32px; font-weight: bold; color: #1e293b; letter-spacing: 8px; font-family: 'Courier New', monospace; }
+          .footer { background: #f9fafb; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px; color: #6b7280; }
+          .warning { background: #fef3c7; border-left: 4px solid #fbbf24; padding: 15px; margin: 20px 0; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Insta Metrics</h1>
+            <p>Código de Recuperação de Senha</p>
+          </div>
+          <div class="content">
+            <p>Olá,</p>
+            <p>Você solicitou a recuperação de senha para sua conta Insta Metrics.</p>
+            <div class="code-box">
+              <p style="margin: 0 0 10px 0; color: #6b7280;">Seu código de verificação:</p>
+              <div class="code">${code}</div>
+            </div>
+            <div class="warning">
+              <strong>⚠️ Importante:</strong>
+              <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                <li>Este código expira em <strong>15 minutos</strong></li>
+                <li>Não compartilhe este código com ninguém</li>
+                <li>Se você não solicitou esta recuperação, ignore este email</li>
+              </ul>
+            </div>
+            <p>Digite este código na página de recuperação de senha para continuar.</p>
+          </div>
+          <div class="footer">
+            <p>Este é um email automático, por favor não responda.</p>
+            <p>&copy; ${new Date().getFullYear()} Insta Metrics. Todos os direitos reservados.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `,
+  text: `
+Insta Metrics - Código de Recuperação de Senha
+
+Olá,
+
+Você solicitou a recuperação de senha para sua conta Insta Metrics.
+
+Seu código de verificação: ${code}
+
+Este código expira em 15 minutos.
+
+Se você não solicitou esta recuperação, ignore este email.
+
+---
+Este é um email automático, por favor não responda.
+© ${new Date().getFullYear()} Insta Metrics.
+  `.trim(),
+});
+
+// ENVIA EMAIL VIA API SENDGRID (SINGLE SENDER - SEM DOMÍNIO NECESSÁRIO)
+const sendViaSendGridAPI = async (email: string, code: string): Promise<void> => {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) {
+    throw new Error("SENDGRID_API_KEY não configurado");
+  }
+
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_USER;
+  if (!fromEmail) {
+    throw new Error("SENDGRID_FROM_EMAIL ou EMAIL_USER não configurado - necessário para envio via SendGrid");
+  }
+
+  const { html, text } = getPasswordResetEmailContent(code);
+
+  const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey.trim()}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email }] }],
+      from: { email: fromEmail, name: "Insta Metrics" },
+      subject: "Código de Recuperação de Senha - Insta Metrics",
+      content: [
+        { type: "text/html", value: html },
+        { type: "text/plain", value: text },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    let errorMsg = response.statusText;
+    try {
+      const parsed = JSON.parse(errorBody) as { errors?: Array<{ message: string }> };
+      if (parsed?.errors?.[0]?.message) errorMsg = parsed.errors[0].message;
+    } catch {
+      if (errorBody) errorMsg = errorBody.slice(0, 200);
+    }
+    console.error(`❌ [SENDGRID API] Falha no envio (HTTP ${response.status}):`, errorMsg);
+    throw new Error(`SendGrid API error: ${errorMsg}`);
+  }
+
+  const msgId = response.headers.get("x-message-id");
+  console.log(`✅ [SENDGRID API] Email enviado com sucesso`);
+  if (msgId) console.log(`📧 Message ID: ${msgId}`);
+};
+
+// VERIFICA SE SENDGRID ESTÁ CONFIGURADO
+const isSendGridConfigured = (): boolean => {
+  const apiKey = process.env.SENDGRID_API_KEY?.trim();
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL?.trim() || process.env.EMAIL_USER?.trim();
+  const ok = !!(apiKey && fromEmail);
+  if (ok) console.log(`✅ [SENDGRID] API Key e remetente configurados`);
+  return ok;
+};
+
 // ENVIA EMAIL VIA API RESEND (MAIS CONFIÁVEL PARA PRODUÇÃO)
 const sendViaResendAPI = async (email: string, code: string): Promise<void> => {
   const apiKey = process.env.RESEND_API_KEY;
@@ -8,7 +134,8 @@ const sendViaResendAPI = async (email: string, code: string): Promise<void> => {
   }
 
   const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
-  
+  const { html, text } = getPasswordResetEmailContent(code);
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -19,70 +146,8 @@ const sendViaResendAPI = async (email: string, code: string): Promise<void> => {
       from: `Insta Metrics <${fromEmail}>`,
       to: [email],
       subject: "Código de Recuperação de Senha - Insta Metrics",
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fbbf24; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
-              .code-box { background: #f3f4f6; border: 2px dashed #fbbf24; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0; }
-              .code { font-size: 32px; font-weight: bold; color: #1e293b; letter-spacing: 8px; font-family: 'Courier New', monospace; }
-              .footer { background: #f9fafb; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px; color: #6b7280; }
-              .warning { background: #fef3c7; border-left: 4px solid #fbbf24; padding: 15px; margin: 20px 0; border-radius: 4px; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>Insta Metrics</h1>
-                <p>Código de Recuperação de Senha</p>
-              </div>
-              <div class="content">
-                <p>Olá,</p>
-                <p>Você solicitou a recuperação de senha para sua conta Insta Metrics.</p>
-                <div class="code-box">
-                  <p style="margin: 0 0 10px 0; color: #6b7280;">Seu código de verificação:</p>
-                  <div class="code">${code}</div>
-                </div>
-                <div class="warning">
-                  <strong>⚠️ Importante:</strong>
-                  <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-                    <li>Este código expira em <strong>15 minutos</strong></li>
-                    <li>Não compartilhe este código com ninguém</li>
-                    <li>Se você não solicitou esta recuperação, ignore este email</li>
-                  </ul>
-                </div>
-                <p>Digite este código na página de recuperação de senha para continuar.</p>
-              </div>
-              <div class="footer">
-                <p>Este é um email automático, por favor não responda.</p>
-                <p>&copy; ${new Date().getFullYear()} Insta Metrics. Todos os direitos reservados.</p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `,
-      text: `
-        Insta Metrics - Código de Recuperação de Senha
-        
-        Olá,
-        
-        Você solicitou a recuperação de senha para sua conta Insta Metrics.
-        
-        Seu código de verificação: ${code}
-        
-        Este código expira em 15 minutos.
-        
-        Se você não solicitou esta recuperação, ignore este email.
-        
-        ---
-        Este é um email automático, por favor não responda.
-        © ${new Date().getFullYear()} Insta Metrics.
-      `,
+      html,
+      text,
     }),
   });
 
@@ -208,7 +273,18 @@ export const sendPasswordResetCode = async (
   email: string,
   code: string
 ): Promise<void> => {
-  // Prioriza Resend API se estiver configurado (mais confiável para produção)
+  // Prioridade: SendGrid (Single Sender, sem domínio) > Resend > SMTP
+  if (isSendGridConfigured()) {
+    try {
+      console.log(`📧 Usando SendGrid API para envio de email`);
+      await sendViaSendGridAPI(email, code);
+      return;
+    } catch (error: any) {
+      console.error(`❌ [SENDGRID API ERROR] Falha ao enviar: ${error.message}`);
+      console.error(`💡 Tentando fallback para Resend ou SMTP...`);
+    }
+  }
+
   if (isResendConfigured()) {
     try {
       console.log(`📧 Usando Resend API para envio de email`);
@@ -217,7 +293,6 @@ export const sendPasswordResetCode = async (
     } catch (error: any) {
       console.error(`❌ [RESEND API ERROR] Falha ao enviar via Resend API: ${error.message}`);
       console.error(`💡 Tentando fallback para SMTP...`);
-      // Continua para tentar SMTP como fallback
     }
   }
 
@@ -232,10 +307,9 @@ export const sendPasswordResetCode = async (
     console.log(`🔑 Código de recuperação: ${code}`);
     console.log(`⏰ Validade: 15 minutos`);
     console.log("\n💡 Para receber emails reais, configure as variáveis de ambiente:");
-    console.log("   EMAIL_USER=seu-email@gmail.com");
-    console.log("   EMAIL_PASS=sua-senha-de-app");
-    console.log("   EMAIL_HOST=smtp.gmail.com");
-    console.log("   EMAIL_PORT=587");
+    console.log("   Opção 1 (recomendado): SENDGRID_API_KEY + SENDGRID_FROM_EMAIL");
+    console.log("   Opção 2: RESEND_API_KEY + RESEND_FROM_EMAIL");
+    console.log("   Opção 3: EMAIL_USER, EMAIL_PASS, EMAIL_HOST, EMAIL_PORT");
     console.log("=".repeat(80) + "\n");
     return;
   }

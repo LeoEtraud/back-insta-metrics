@@ -33,38 +33,35 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   // Salva código no banco
   await storage.setUserResetCode(email, code, expiresAt);
   
-  // Verifica se email está configurado (Resend ou SMTP tradicional)
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const hasResend = !!(resendApiKey && resendApiKey.trim().length > 0);
+  // Verifica se email está configurado (SendGrid, Resend ou SMTP tradicional)
+  const sendgridApiKey = process.env.SENDGRID_API_KEY?.trim();
+  const sendgridFrom = process.env.SENDGRID_FROM_EMAIL?.trim() || process.env.EMAIL_USER?.trim();
+  const hasSendGrid = !!(sendgridApiKey && sendgridFrom);
+  const hasResend = !!(process.env.RESEND_API_KEY?.trim());
   const hasSmtp = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-  const emailConfigured = hasResend || hasSmtp;
-  
-  // Logs de debug para verificar variáveis de ambiente
+  const emailConfigured = hasSendGrid || hasResend || hasSmtp;
+
   console.log(`🔍 [DEBUG] Verificando configuração de email:`);
-  console.log(`   RESEND_API_KEY existe: ${!!resendApiKey}`);
-  console.log(`   RESEND_API_KEY tem valor: ${hasResend}`);
-  console.log(`   EMAIL_USER existe: ${!!process.env.EMAIL_USER}`);
-  console.log(`   EMAIL_PASS existe: ${!!process.env.EMAIL_PASS}`);
+  console.log(`   SENDGRID_API_KEY: ${!!sendgridApiKey}`);
+  console.log(`   SENDGRID_FROM_EMAIL/EMAIL_USER: ${!!sendgridFrom}`);
+  console.log(`   RESEND_API_KEY: ${!!hasResend}`);
+  console.log(`   EMAIL_* (SMTP): ${hasSmtp}`);
   console.log(`   Email configurado: ${emailConfigured}`);
-  
+
   if (!emailConfigured) {
     console.warn("⚠️  EMAIL não configurado - código gerado mas não será enviado");
-    console.warn(`💡 Código gerado para ${email}: ${code}`);
-    console.warn(`💡 Configure no Render:`);
-    console.warn(`   Opção 1 (Recomendado): RESEND_API_KEY=re_sua_chave_aqui`);
-    console.warn(`   Opção 2: EMAIL_USER, EMAIL_PASS, EMAIL_HOST, EMAIL_PORT`);
-    return res.status(500).json({ 
-      message: "Serviço de email não configurado. Entre em contato com o suporte." 
+    console.warn(`💡 Configure no Render: SENDGRID_API_KEY + SENDGRID_FROM_EMAIL, ou RESEND_API_KEY, ou EMAIL_USER/EMAIL_PASS`);
+    return res.status(500).json({
+      message: "Serviço de email não configurado. Entre em contato com o suporte.",
     });
   }
-  
-  // Log qual serviço está sendo usado
-  if (hasResend) {
+
+  if (hasSendGrid) {
+    console.log(`📧 ✅ Usando SendGrid API para envio de email`);
+  } else if (hasResend) {
     console.log(`📧 ✅ Usando Resend API para envio de email`);
-    console.log(`   API Key prefix: ${resendApiKey?.substring(0, 3)}...`);
   } else {
-    console.log(`📧 ⚠️  Usando SMTP (${process.env.EMAIL_HOST || "smtp.gmail.com"}) - Resend não detectado`);
-    console.log(`   💡 Para usar Resend, configure RESEND_API_KEY no Render`);
+    console.log(`📧 ⚠️  Usando SMTP (${process.env.EMAIL_HOST || "smtp.gmail.com"})`);
   }
 
   try {
