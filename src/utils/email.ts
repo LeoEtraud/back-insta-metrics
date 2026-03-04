@@ -93,8 +93,8 @@ const sendViaSendGridAPI = async (email: string, code: string): Promise<void> =>
       from: { email: fromEmail, name: "Insta Metrics" },
       subject: "Código de Recuperação de Senha - Insta Metrics",
       content: [
-        { type: "text/html", value: html },
         { type: "text/plain", value: text },
+        { type: "text/html", value: html },
       ],
     }),
   });
