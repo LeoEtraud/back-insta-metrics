@@ -66,25 +66,25 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
     console.log(`📧 ⚠️  Usando SMTP (${process.env.EMAIL_HOST || "smtp.gmail.com"}) - Resend não detectado`);
     console.log(`   💡 Para usar Resend, configure RESEND_API_KEY no Render`);
   }
-  
-  // Envia email com código de forma assíncrona (não bloqueia a resposta)
-  // Mas ainda aguarda um tempo razoável para detectar erros imediatos
-  sendPasswordResetCode(email, code)
-    .then(() => {
-      console.log(`✅ [EMAIL] Processo de recuperação concluído para: ${email}`);
-    })
-    .catch((error: any) => {
-      console.error("\n❌ [EMAIL ERROR] Falha ao enviar email de recuperação");
-      console.error("Email:", email);
-      console.error("Código gerado:", code);
-      console.error("Erro:", error.message);
-      console.error("\n💡 O código foi salvo no banco e pode ser usado mesmo sem o email chegar.");
-      console.error("💡 Verifique os logs acima para diagnosticar o problema de envio.\n");
+
+  try {
+    const timeoutMs = 28000; // 28s para não exceder limite típico do Render
+    const sendPromise = sendPasswordResetCode(email, code);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout ao enviar email. Tente novamente.")), timeoutMs)
+    );
+    await Promise.race([sendPromise, timeoutPromise]);
+    console.log(`✅ [EMAIL] Processo de recuperação concluído para: ${email}`);
+    return res.json({ message: "Código de recuperação enviado para seu email." });
+  } catch (error: any) {
+    console.error("\n❌ [EMAIL ERROR] Falha ao enviar email de recuperação");
+    console.error("Email:", email);
+    console.error("Erro:", error.message);
+    console.error("💡 Se usar Resend com onboarding@resend.dev, só é possível enviar para o e-mail da sua conta Resend. Verifique um domínio em resend.com/domains e use RESEND_FROM_EMAIL com esse domínio.\n");
+    return res.status(500).json({
+      message: "Não foi possível enviar o e-mail de recuperação. Verifique se o serviço de e-mail está configurado corretamente no servidor ou tente novamente mais tarde.",
     });
-  
-  // Retorna resposta imediatamente (não espera o email ser enviado)
-  // Isso evita timeouts na requisição HTTP
-  res.json({ message: "Código de recuperação enviado para seu email." });
+  }
 });
 
 // VERIFICA SE O CÓDIGO DE RECUPERAÇÃO DE SENHA É VÁLIDO E ESTÁ ASSOCIADO AO EMAIL

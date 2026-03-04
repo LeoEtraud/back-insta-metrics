@@ -2,6 +2,12 @@
 
 O Gmail SMTP pode ter problemas de conectividade no Render devido a bloqueios de rede ou problemas com IPv6. **Recomendamos usar Resend** para produção, que é mais confiável e rápido.
 
+## ⚠️ Recuperação de senha: e-mail não chega?
+
+1. **No Render (Environment)** confira: `RESEND_API_KEY` (começa com `re_`) e `RESEND_FROM_EMAIL`.
+2. **Se usar `onboarding@resend.dev`**: o Resend só envia para o **e-mail da sua conta Resend**. Para qualquer outro destinatário você receberá erro 403 e o e-mail não será enviado. **Solução**: verifique um domínio em [resend.com/domains](https://resend.com/domains) e use `RESEND_FROM_EMAIL=noreply@seudominio.com`.
+3. **Logs**: ao solicitar recuperação, veja no log do Render se aparece `POST /api/auth/forgot-password`, `📧 Usando Resend API` e `✅ [RESEND API] Email enviado`. Se aparecer `❌ [RESEND API] Falha (HTTP 403)`, é o caso do item 2.
+
 ## 🚀 Solução Recomendada: Resend (API REST)
 
 ### Por que Resend?

@@ -126,14 +126,13 @@ GET https://back-insta-metrics.onrender.com/api/auth/meta/check
 
 A resposta mostra o `redirectUri` que o backend envia para o Facebook. Esse valor **tem que ser idêntico** ao que está em Meta for Developers → Login do Facebook → Configurações → URIs de redirecionamento (ex.: `https://back-insta-metrics.onrender.com/api/auth/meta/callback` **sem** `x` ou barra no final).
 
-### 2. App em "Em desenvolvimento" – Testador
-Se o app "Valdeci Insights" está em **Em desenvolvimento**, a conta do **Facebook** que clica em "Conectar Instagram" precisa ser **Testador** (ou Administrador/Desenvolvedor) do app:
+### 2. App em "Em desenvolvimento" – Testador do app (obrigatório)
+Se o app "Valdeci Insights" está em **Em desenvolvimento**, a conta do **Facebook** que autoriza na tela do Facebook precisa ter a função **Testador** (ou Administrador/Desenvolvedor) **do app**. Apenas "Testador do Instagram" pode não bastar para o Login do Facebook funcionar.
 
-- Meta for Developers → **Valdeci Insights** → **Funções** → **Testadores** → **Adicionar testadores**
-- Use o **e-mail da conta Facebook** (não o do Instagram) da pessoa que vai conectar
-- A pessoa deve **aceitar o convite** (e-mail ou notificação no Facebook)
-
-Se não for testador, o Facebook mostra "Login do Facebook está indisponível para este app".
+- Meta for Developers → **Valdeci Insights** → **Funções do app** → aba **Testadores** → **Adicionar pessoas**
+- Selecione a função **Testador** (não só "Testador do Instagram") e informe o e-mail ou nome da **conta Facebook** que vai conectar
+- A pessoa deve **aceitar o convite** (e-mail ou em Facebook → Configurações → Apps e sites)
+- A conta que **abre quando você clica em "Conectar Instagram"** (tela do Facebook) tem que ser exatamente essa que é testadora
 
 ### 3. Variáveis no Render
 No painel do Render, confira as variáveis do serviço do backend:

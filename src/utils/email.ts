@@ -90,6 +90,9 @@ const sendViaResendAPI = async (email: string, code: string): Promise<void> => {
     const errorBody = await response.json().catch(() => ({})) as { message?: string; name?: string; statusCode?: number };
     const errorMsg = errorBody.message || errorBody.name || response.statusText;
     console.error(`❌ [RESEND API] Falha no envio (HTTP ${response.status}):`, JSON.stringify(errorBody));
+    if (response.status === 403) {
+      console.error(`💡 [RESEND 403] Com "onboarding@resend.dev" você só pode enviar para o e-mail da sua conta Resend. Para enviar para qualquer destinatário: adicione um domínio em https://resend.com/domains e use RESEND_FROM_EMAIL=noreply@seudominio.com`);
+    }
     throw new Error(`Resend API error: ${errorMsg}`);
   }
 
