@@ -118,7 +118,21 @@ export const metaAuthStart = async (req: AuthRequest, res: Response) => {
   // State como JWT assinado (não usa memória — funciona quando o servidor reinicia, ex.: Render)
   const state = signOAuthState({ companyId: resolvedCompanyId, userId: user.userId });
 
-  const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${encodeURIComponent(META_SCOPES)}&state=${state}`;
+  const authUrl =
+    "https://www.facebook.com/v20.0/dialog/oauth" +
+    `?client_id=${encodeURIComponent(appId)}` +
+    `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
+    `&response_type=code` +
+    `&scope=${encodeURIComponent(META_SCOPES)}` +
+    `&state=${encodeURIComponent(state)}`;
+
+  // Debug: confira no log se scope e redirect_uri batem com o app na Meta
+  console.log("[META] /api/auth/meta/start → URL gerada (scope e redirect_uri):", {
+    scope: META_SCOPES,
+    redirect_uri: callbackUrl,
+    url: authUrl.replace(state, "<state>"),
+  });
+
   res.status(200).json({ url: authUrl });
 };
 
@@ -148,16 +162,23 @@ export const metaCallback = async (req: Request, res: Response) => {
 
   try {
     const tokenRes = await exchangeCodeForToken(code);
+    console.log("[META] callback: code trocado por user token (curto) com sucesso");
+
     const longLived = await getLongLivedToken(tokenRes.accessToken);
+    console.log("[META] callback: token long-lived obtido, expira em", longLived.expiresIn, "s");
+
     const pages = await getPagesWithInstagram(longLived.accessToken);
 
     if (pages.length === 0) {
+      console.warn("[META] callback: /me/accounts retornou 0 páginas com IG → no_linked_page");
       return res.redirect(
         `${frontendUrl}/settings?instagram_error=no_linked_page`
       );
     }
 
     const first = pages[0];
+    console.log("[META] callback: página/IG selecionada:", { pageId: first.pageId, igUserId: first.igUserId, username: first.username });
+
     const expiresAt = longLived.expiresIn
       ? new Date(Date.now() + longLived.expiresIn * 1000)
       : null;
@@ -171,6 +192,7 @@ export const metaCallback = async (req: Request, res: Response) => {
 
     return res.redirect(`${frontendUrl}/settings?instagram_connected=1`);
   } catch (err: any) {
+    console.error("[META] callback erro:", err?.message || err);
     const msg = err.message || "Erro ao conectar Instagram";
     const isTokenExpired = msg.includes("instagram_token_expired") || msg.includes("Reconecte");
     const query = isTokenExpired ? "instagram_token_expired" : encodeURIComponent(msg);

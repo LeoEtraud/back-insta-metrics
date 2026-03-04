@@ -3,7 +3,7 @@
  * Responsável por troca de tokens OAuth, obtenção de páginas, mídia e insights.
  */
 
-const META_GRAPH_VERSION = "v18.0";
+const META_GRAPH_VERSION = "v20.0";
 const BASE_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
 
 function getConfig() {
@@ -110,8 +110,11 @@ export async function getPagesWithInstagram(accessToken: string): Promise<PageWi
     }
 
     const pages = data.data || [];
+    // Debug: resposta de /me/accounts (tamanho e se cada página tem IG)
+    console.log("[META] /me/accounts resposta: total de páginas =", pages.length);
     for (const page of pages) {
       const ig = page.instagram_business_account;
+      console.log("[META]   Página:", { id: page.id, name: page.name, hasInstagram: !!(ig?.id && ig?.username), igId: ig?.id ?? null });
       if (ig?.id && ig?.username) {
         results.push({
           pageId: page.id,
@@ -127,7 +130,8 @@ export async function getPagesWithInstagram(accessToken: string): Promise<PageWi
   if (results.length === 0) {
     console.warn(
       "[META] getPagesWithInstagram: nenhuma página com Instagram encontrada. " +
-        "Verifique se a conta que autorizou é admin da Página e se o Instagram está vinculado em Configurações da Página."
+        "Verifique: 1) scopes (pages_show_list, pages_read_engagement, etc.); 2) conta é admin da Página; 3) Instagram vinculado na Página. " +
+        "Debug token: GET https://graph.facebook.com/debug_token?input_token=USER_TOKEN&access_token=APP_ID|APP_SECRET"
     );
   }
 
